@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+.vs/
+*.user
+
+# This machine's settings (see local.props.example)
+local.props
+
+# Saved runs from real games: player names, Steam IDs, seeds
+runs/
+
+# Screenshots and rendered mockups show real players' names; kept locally only
+docs/**/*.png
+
+# Design mockups: they need the game's art to render, which can't be published; kept locally only
+docs/mockups/
