@@ -19,7 +19,7 @@ internal static class ScoreboardTab
 
         Label note = k.Text("", 14, RecapTheme.Muted);
         note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        tab.AddChild(k.At(note, 40, 640, 1120, -1));
+        tab.AddChild(k.At(note, 40, 648, 1120, -1)); // under the lowest badges of a 2-card hand
         void Note(RecapView v)
         {
             BarRow? unattributed = v.Overview.FirstOrDefault(r => r.Share == null);
@@ -38,34 +38,6 @@ internal static class ScoreboardTab
     }
 
     public static List<BarRow> Players(RecapView view) => view.Overview.Where(r => r.Share != null).ToList();
-
-    /// <summary>Where each card of an n-card hand lies: position, tilt and scale. Also used by the saved image.</summary>
-    public readonly record struct Slot(float X, float Y, float Tilt, float Scale);
-
-    public static (float Width, Slot[] Slots) Layout(int n, float handWidth, float top)
-    {
-        n = Math.Max(1, n);
-        float w = n == 1 ? 330 : n == 2 ? 312 : 292;
-        float step = n == 1 ? 0 : n == 2 ? 400 : n <= 4 ? 256 : (handWidth - 120 - w) / (n - 1);
-        float spread = (n - 1) * step + w;
-        float left = n == 1 ? 190 : (handWidth - spread) / 2;
-        float[] tilt = n switch
-        {
-            1 => new[] { 0f },
-            2 => new[] { -3.5f, 3.5f },
-            3 => new[] { -4f, 0f, 4f },
-            4 => new[] { -5f, -1.7f, 1.7f, 5f },
-            _ => Enumerable.Range(0, n).Select(i => -6f + 12f * i / (n - 1)).ToArray(),
-        };
-        var slots = new Slot[n];
-        for (int i = 0; i < n; i++)
-        {
-            float drop = n >= 3 ? (Math.Abs(tilt[i]) > 3 ? 30 : 4) : 10;
-            float y = top + (n == 2 ? 24 : 0) + drop - (i == 0 && n > 2 ? 16 : 0);
-            slots[i] = new Slot(left + i * step, y, tilt[i], i == 0 && n > 1 ? 1.06f : 1f);
-        }
-        return (w, slots);
-    }
 
     /// <summary>
     /// The player cards. Live: numbers count up, and when the ranking changes the cards glide to their new places
@@ -90,7 +62,8 @@ internal static class ScoreboardTab
             List<BarRow> players = Players(view);
             int n = players.Count;
             if (n == 0) return;
-            (float w, Slot[] slots) = Layout(n, 1200, 148);
+            // Low enough that no card, even hovered, reaches up into the tabs.
+            (float w, HandLayout.Slot[] slots) = HandLayout.Layout(n, 1200, HandLayout.TopClearOfTabs(n, 1200));
             // A different party size (a player joined mid-run) re-deals the hand at the new size.
             if (_cards.Count > 0 && (_cards.Count != n || _cards.Values.Any(c => Math.Abs(c.Width - w) > 0.1f) || players.Any(p => !_cards.ContainsKey(p.Label))))
             {
@@ -204,7 +177,7 @@ internal static class ScoreboardTab
             Face.SetLeader(rank == 0);
         }
 
-        public void Place(Slot slot, int z, bool animate)
+        public void Place(HandLayout.Slot slot, int z, bool animate)
         {
             Face.Root.ZIndex = z;
             Face.MoveTo(_k.V(slot.X, slot.Y), Mathf.DegToRad(slot.Tilt), slot.Scale, animate);
@@ -232,7 +205,8 @@ internal static class ScoreboardTab
             root.Modulate = new Color(1, 1, 1, 0);
             Tween tween = root.CreateTween().SetParallel().SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
             double delay = 0.06 + index * 0.08;
-            tween.TweenProperty(root, "position", target, 0.5).SetDelay(delay);
+            // No overshoot on the way up: a bounce would carry the card over the tabs.
+            tween.TweenProperty(root, "position", target, 0.5).SetDelay(delay).SetTrans(Tween.TransitionType.Quint);
             tween.TweenProperty(root, "rotation", rotation, 0.5).SetDelay(delay);
             tween.TweenProperty(root, "modulate", Colors.White, 0.25).SetDelay(delay).SetTrans(Tween.TransitionType.Linear);
         }

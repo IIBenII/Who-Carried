@@ -206,8 +206,11 @@ internal static class RecapPanel
     /// </summary>
     private static Control Nav(Kit k, TabContainer tabs)
     {
-        Control nav = k.At(k.Box(1520, 50), 40, 88);
-        nav.AddChild(k.At(new ColorRect { Color = RecapTheme.Line, MouseFilter = Control.MouseFilterEnum.Ignore }, 0, 36, 1520, 1));
+        // Where the tabs sit is shared with the scoreboard, whose cards keep clear of them (HandLayout).
+        const float top = HandLayout.TabsTop;
+        Control nav = k.At(k.Box(1520, 50), 40, top);
+        nav.AddChild(k.At(new ColorRect { Color = RecapTheme.Line, MouseFilter = Control.MouseFilterEnum.Ignore }, 0,
+            HandLayout.TabLine - top, 1520, 1));
         // The stroke sits in a clipping box that grows from nothing, so it looks painted on.
         var stroke = new Control { ClipContents = true, MouseFilter = Control.MouseFilterEnum.Ignore };
         TextureRect brush = k.Stretch(GameArt.Get(GameArt.Brush), 0, 16, RecapTheme.Gold);
@@ -227,7 +230,7 @@ internal static class RecapPanel
                 tab.AddThemeStyleboxOverride(state, new StyleBoxEmpty());
             float width = (RecapTheme.Bold?.GetStringSize(Views[i], HorizontalAlignment.Left, -1, k.F(19)).X ?? Views[i].Length * k.U(10)) / k.S;
             tab.Position = k.V(x, 0);
-            tab.Size = k.V(width, 30);
+            tab.Size = k.V(width, HandLayout.TabsBottom - top);
             tab.Pressed += () => tabs.CurrentTab = index;
             nav.AddChild(tab);
             buttons.Add((tab, x, width));

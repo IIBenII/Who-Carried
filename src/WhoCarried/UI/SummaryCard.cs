@@ -153,7 +153,7 @@ internal static class SummaryCard
             var card = new ScoreboardTab.PlayerCard(k, view, players[i], w, n, foilAt: 0.42f);
             card.Update(view, players[i], i, n);
             float drop = n >= 3 ? (Math.Abs(tilt[i]) > 3 ? 26 : 4) : 10;
-            card.Place(new ScoreboardTab.Slot(left + i * step, 22 + drop - (i == 0 && n > 2 ? 12 : 0), tilt[i], i == 0 && n > 1 ? 1.05f : 1f), i + 1, animate: false);
+            card.Place(new HandLayout.Slot(left + i * step, 22 + drop - (i == 0 && n > 2 ? 12 : 0), tilt[i], i == 0 && n > 1 ? 1.05f : 1f), i + 1, animate: false);
             hand.AddChild(card.Face.Root);
         }
         if (n == 1) hand.AddChild(k.At(ScoreboardTab.Story(k, view, null, 640), 400, 40, 640, -1));

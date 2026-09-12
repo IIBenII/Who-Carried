@@ -21,8 +21,8 @@ internal sealed record CardSpec(float Width, Color Color, string Banner, Texture
 /// </summary>
 internal sealed class CardFace
 {
-    /// <summary>Height over width, like the game's cards.</summary>
-    public const float Aspect = 1.41f;
+    /// <summary>Height over width, like the game's cards. The card's shape lives in <see cref="HandLayout"/>.</summary>
+    public const float Aspect = HandLayout.Aspect;
 
     private readonly Kit _k;
     private readonly float _w, _h, _em;
@@ -40,11 +40,11 @@ internal sealed class CardFace
         _k = k;
         _w = spec.Width;
         _h = spec.Width * Aspect;
-        _em = spec.Width / 18.25f;
+        _em = spec.Width / HandLayout.EmsAcross;
         Color c = spec.Color;
         Root = k.Box(_w, _h);
         // Tilts turn round a point below the card, so a fanned hand spreads from one wrist.
-        Root.PivotOffset = k.V(_w / 2, _h * 1.2f);
+        Root.PivotOffset = k.V(_w / 2, _h * HandLayout.PivotDown);
 
         Root.AddChild(Shadow(spec.Glow));
         _glow = spec.Glow ? _glowPanel : null;
@@ -103,8 +103,8 @@ internal sealed class CardFace
         Root.AddChild(k.At(Body, _w * 0.11f, _h * 0.55f, _w * 0.78f, _h * 0.38f));
 
         // The gem overhangs the top-left corner.
-        float gem = _em * 4.6f;
-        Control gemBox = k.At(k.Box(gem, gem), -_em * 1.1f, -_em * 1.25f);
+        float gem = _em * HandLayout.GemSize;
+        Control gemBox = k.At(k.Box(gem, gem), _em * HandLayout.GemLeft, _em * HandLayout.GemTop);
         Texture2D? gemTexture = spec.Gem ?? GameArt.Get(GameArt.Energy);
         TextureRect gemPic = k.Pic(gemTexture, gem, gem, spec.Gem == null ? RecapTheme.Accent(c.ToHtml(false)) : null);
         gemBox.AddChild(gemPic);
@@ -132,7 +132,7 @@ internal sealed class CardFace
     public void SetGemText(string text) => _gemText.Text = text;
 
     private Vector2 _home;
-    private float _homeScale = 1;
+    private float _homeScale = 1, _homeRotation;
     private bool _lifted;
 
     /// <summary>Puts the card in its place on the table (screen units), gliding there when <paramref name="animate"/>.</summary>
@@ -140,6 +140,7 @@ internal sealed class CardFace
     {
         _home = position;
         _homeScale = scale;
+        _homeRotation = rotation;
         (Vector2 at, Vector2 size) = Lifted();
         if (animate && Root.IsInsideTree())
         {
@@ -160,6 +161,7 @@ internal sealed class CardFace
     {
         Root.MouseFilter = Control.MouseFilterEnum.Pass;
         _home = Root.Position;
+        _homeRotation = Root.Rotation;
         Root.MouseEntered += () => Lift(true);
         Root.MouseExited += () => Lift(false);
     }
@@ -173,10 +175,13 @@ internal sealed class CardFace
         Anim.To(Root, "scale", size);
     }
 
+    /// <summary>Where the card sits and how big, lifted or not (hovering: see HandLayout.Hovered).</summary>
     private (Vector2 Position, Vector2 Scale) Lifted()
     {
-        float s = _homeScale * (_lifted ? 1.03f : 1f);
-        return (_home - (_lifted ? _k.V(0, 14) : Vector2.Zero), new Vector2(s, s));
+        if (!_lifted) return (_home, new Vector2(_homeScale, _homeScale));
+        (float dx, float dy) = HandLayout.HoverShift(_w, Mathf.RadToDeg(_homeRotation), _homeScale);
+        float s = _homeScale * HandLayout.HoverGrow;
+        return (_home + _k.V(dx, dy), new Vector2(s, s));
     }
 
     /// <summary>The leader's card is foil and glows; the others are plain (for cards built with foil and glow).</summary>
