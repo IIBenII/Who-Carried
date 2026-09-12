@@ -77,6 +77,29 @@ public static class ReplayTests
     }
 
     [Test]
+    public static void SplitPoisonAndDoomLinesReplayAsEachPlayersOwn()
+    {
+        string[] log =
+        {
+            LogReplay.HeaderLine("0.1.0", "SEED3:1789300000", new DateTime(2026, 9, 13, 20, 0, 0)),
+            "player 1 = Ash (The Silent) #76b041",
+            "player 2 = Jo (The Necrobinder) #ee82ee",
+            "[F3 A1] fight start: Cultist",
+            "[F3 A1] Ash <- Power:POISON_POWER (Poison) 5 hp | target CULTIST, blocked 0, dealer null, stack []",
+            "[F3 A1] Jo <- Power:POISON_POWER (Poison) 4 hp | target CULTIST, blocked 0, dealer null, stack []",
+            "[F3 A1] Ash <- Power:DOOM_POWER (Doom) 19 hp | target CULTIST, doom kill",
+            "[F3 A1] Jo <- Power:DOOM_POWER (Doom) 6 hp | target CULTIST, doom kill",
+            "[F3 A1] fight end, saved",
+        };
+        RunStats stats = LogReplay.Parse(log).Stats;
+        Check.Equal(5, stats.Get(1)!.Sources["Power:POISON_POWER"].Amount, "Ash's Poison");
+        Check.Equal(4, stats.Get(2)!.Sources["Power:POISON_POWER"].Amount, "Jo's Poison");
+        Check.Equal(19, stats.Get(1)!.Sources["Power:DOOM_POWER"].Amount, "Ash's Doom");
+        Check.Equal(6, stats.Get(2)!.Sources["Power:DOOM_POWER"].Amount, "Jo's Doom");
+        Check.Equal(5 + 4 + 19 + 6, stats.Fights[0].DamageByPlayer.Values.Sum(), "the fight's total");
+    }
+
+    [Test]
     public static void PrettyTurnsIdsIntoNames()
     {
         Check.Equal("Unleash", LogReplay.Pretty("UNLEASH"), "plain");

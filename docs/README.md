@@ -14,3 +14,4 @@ They were written with Claude Code, which is why they mention Claude building, d
 | [Debuffs](design/specs/2026-09-10-run-recap-debuffs-design.md) | | Debuffs each player applied and received, and the extra damage their Vulnerable set up for the team |
 | ["Post-match broadcast" redesign](design/specs/2026-09-10-run-recap-broadcast-design.md) | | A sports-broadcast look, later replaced |
 | ["Dealt" redesign](design/specs/2026-09-12-run-recap-dealt-design.md) | | The card-table look the mod ships with |
+| [Fair Poison and Doom split](design/specs/2026-09-12-poison-doom-split-design.md) | | Sharing Poison ticks and Doom kills by each player's part of the pile, instead of crediting whoever started it |

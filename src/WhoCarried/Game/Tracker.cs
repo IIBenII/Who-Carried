@@ -100,10 +100,14 @@ internal static class Tracker
         if (facts.TargetIsEnemy)
         {
             AttributionResult who = Attribution.Resolve(facts);
-            _stats.RecordDamage(who.PlayerId, who.Source, facts.HpRemoved, facts.Blocked);
-            _log?.Write($"{Where} {NameOf(who.PlayerId)} <- {who.Source.Kind}:{who.Source.Id} ({who.Source.Label}) " +
-                        $"{facts.HpRemoved} hp | target {Describe(target)}, blocked {facts.Blocked}, " +
-                        $"dealer {Describe(dealer)}, stack [{StackIds(context)}]");
+            if (PoisonShares(facts, dealer, target) is { } shares)
+            {
+                foreach ((ulong player, int hp) in shares) RecordHit(player, who.Source, hp, 0, target, dealer, context);
+            }
+            else
+            {
+                RecordHit(who.PlayerId, who.Source, facts.HpRemoved, facts.Blocked, target, dealer, context);
+            }
             if (boosted != null) CreditDebuffBonus(boosted, facts, who.PlayerId);
         }
         else if (facts.TargetPlayerId is ulong targetPlayer)
@@ -112,6 +116,34 @@ internal static class Tracker
         }
         if (target.Player is Player hurt) NoteHp(hurt.NetId, target.CurrentHp, target.MaxHp);
         Touch();
+    }
+
+    private static void RecordHit(ulong? player, SourceRef source, int hp, int blocked, Creature target, Creature? dealer,
+                                  PlayerChoiceContext? context)
+    {
+        _stats.RecordDamage(player, source, hp, blocked);
+        _log?.Write($"{Where} {NameOf(player)} <- {source.Kind}:{source.Id} ({source.Label}) " +
+                    $"{hp} hp | target {Describe(target)}, blocked {blocked}, " +
+                    $"dealer {Describe(dealer)}, stack [{StackIds(context)}]");
+    }
+
+    /// <summary>
+    /// A Poison tick's HP shared by who owns the pile. Null for any other hit, or if the split can't be made (the hit
+    /// then goes to the pile's starter, as before).
+    /// </summary>
+    private static IReadOnlyDictionary<ulong, int>? PoisonShares(DamageFacts facts, Creature? dealer, Creature target)
+    {
+        try
+        {
+            return facts.HpRemoved > 0 && FactsExtractor.PoisonTick(facts, dealer, target) is PoisonPower poison
+                ? DebuffBonusTracker.SplitPile(poison, facts.HpRemoved)
+                : null;
+        }
+        catch (Exception e)
+        {
+            LogError("poison split", e);
+            return null;
+        }
     }
 
     /// <summary>Lasting Strength a player took off an enemy (Malaise) is listed as this debuff.</summary>
@@ -263,8 +295,9 @@ internal static class Tracker
     }
 
     /// <summary>
-    /// Doom kills bypass the damage hooks: the game removes the creature's remaining HP with a direct kill.
-    /// Count that HP as removed by the Doom power, credited to whoever applied it.
+    /// Doom kills bypass the damage hooks: the game removes the creature's remaining HP with a direct kill. Count that
+    /// HP as removed by the Doom power, shared by how much Doom each player added (or to whoever applied it, if that
+    /// can't be worked out).
     /// </summary>
     public static void OnDoomKill(IReadOnlyList<Creature> creatures)
     {
@@ -277,11 +310,32 @@ internal static class Tracker
             SourceCandidate source = doom != null
                 ? FactsExtractor.Candidate(doom)
                 : new SourceCandidate(new SourceRef(SourceKind.Power, "DOOM_POWER", "Doom"), null);
-            _stats.RecordDamage(source.OwnerId, source.Source, hp);
-            _log?.Write($"{Where} {NameOf(source.OwnerId)} <- {source.Source.Kind}:{source.Source.Id} ({source.Source.Label}) " +
-                        $"{hp} hp | target {Describe(creature)}, doom kill");
+            IReadOnlyDictionary<ulong, int>? shares = null;
+            try
+            {
+                if (doom != null) shares = DebuffBonusTracker.SplitPile(doom, hp);
+            }
+            catch (Exception e)
+            {
+                LogError("doom split", e);
+            }
+            if (shares != null)
+            {
+                foreach ((ulong player, int part) in shares) RecordDoomKill(player, source.Source, part, creature);
+            }
+            else
+            {
+                RecordDoomKill(source.OwnerId, source.Source, hp, creature);
+            }
         }
         Touch();
+    }
+
+    private static void RecordDoomKill(ulong? player, SourceRef source, int hp, Creature creature)
+    {
+        _stats.RecordDamage(player, source, hp);
+        _log?.Write($"{Where} {NameOf(player)} <- {source.Kind}:{source.Id} ({source.Label}) " +
+                    $"{hp} hp | target {Describe(creature)}, doom kill");
     }
 
     /// <summary>

@@ -86,6 +86,13 @@ internal static class FactsExtractor
         return poison == null ? null : Candidate(poison);
     }
 
+    /// <summary>
+    /// The Poison pile a hit came from: no dealer, no card and nothing on the stack (so the fallback credited Poison),
+    /// and the target has Poison. Null for any other hit.
+    /// </summary>
+    public static PoisonPower? PoisonTick(DamageFacts facts, Creature? dealer, Creature target) =>
+        dealer == null && facts.Card == null && facts.StackTop == null ? target.GetPower<PoisonPower>() : null;
+
     private static SourceRef PetSource(Creature pet)
     {
         string name = Safe(() => pet.Name) ?? "";

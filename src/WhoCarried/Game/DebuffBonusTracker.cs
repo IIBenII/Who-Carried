@@ -23,6 +23,10 @@ internal static class DebuffBonusTracker
 
     private static readonly Dictionary<Creature, PendingHit> Pending = new(ReferenceEqualityComparer.Instance);
     private static readonly ConditionalWeakTable<PowerModel, StackLedger> Stacks = new();
+    private static readonly ConditionalWeakTable<PowerModel, SharedPile> Piles = new();
+
+    /// <summary>Poison and Doom: one pile per enemy, whose damage is shared by who owns it.</summary>
+    private static bool IsSharedPile(PowerModel power) => power is PoisonPower or DoomPower;
 
     /// <summary>Called just before a hit's block is applied, with the hit's final damage.</summary>
     public static void BeforeDamage(Creature target, decimal amount, ValueProp props, Creature? dealer, CardModel? cardSource)
@@ -129,7 +133,19 @@ internal static class DebuffBonusTracker
     public static void AddStacks(PowerModel power, ulong? player, int stacks)
     {
         if (stacks <= 0) return;
-        Stacks.GetOrCreateValue(power).Add(player, stacks);
+        // The game has already added them: Hook.AfterPowerAmountChanged fires after the amount changes.
+        if (IsSharedPile(power)) Piles.GetOrCreateValue(power).Add(player, stacks, power.Amount);
+        else Stacks.GetOrCreateValue(power).Add(player, stacks);
+    }
+
+    /// <summary>
+    /// Shares out <paramref name="damage"/> that a Poison or Doom pile just dealt, by who owns it. Null when no player
+    /// has a share in it.
+    /// </summary>
+    public static IReadOnlyDictionary<ulong, int>? SplitPile(PowerModel power, int damage)
+    {
+        IReadOnlyDictionary<ulong, int> credits = Piles.GetOrCreateValue(power).Credit(power.Amount, damage);
+        return credits.Count > 0 ? credits : null;
     }
 
     /// <summary>
