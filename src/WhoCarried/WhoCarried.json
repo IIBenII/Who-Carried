@@ -1,0 +1,12 @@
+{
+  "id": "WhoCarried",
+  "name": "Who Carried?",
+  "author": "huntlol-dev",
+  "description": "Per-player damage and defense charts at the end of a run (F8 during the run). Read-only; does not affect gameplay.",
+  "version": "0.1.0",
+  "has_pck": false,
+  "has_dll": true,
+  "min_game_version": "0.111.0",
+  "dependencies": [],
+  "affects_gameplay": false
+}

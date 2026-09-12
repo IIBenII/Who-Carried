@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Machine-specific settings (e.g. GameDir) live in the untracked local.props at the repo root. -->
+  <Import Project="..\..\local.props" Condition="Exists('..\..\local.props')" />
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>WhoCarried</AssemblyName>
+    <RootNamespace>WhoCarried</RootNamespace>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <DebugType>portable</DebugType>
+    <GameData>$(GameDir)\data_sts2_windows_x86_64</GameData>
+  </PropertyGroup>
+  <!-- The game's DLLs are referenced in place, so the build has to know where the game is installed. -->
+  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences" Condition="!Exists('$(GameData)\sts2.dll')">
+    <Error Text="Can't find the game's DLLs in '$(GameData)'. Set GameDir in local.props (copy local.props.example) or pass -p:GameDir=&lt;your Slay the Spire 2 folder&gt;." />
+  </Target>
+  <ItemGroup>
+    <Reference Include="sts2">
+      <HintPath>$(GameData)\sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="GodotSharp">
+      <HintPath>$(GameData)\GodotSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(GameData)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="WhoCarried.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

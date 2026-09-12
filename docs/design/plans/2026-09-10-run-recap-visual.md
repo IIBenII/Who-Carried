@@ -227,7 +227,7 @@ public static class ChartMathTests
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `& 'C:\Program Files\dotnet\dotnet.exe' run --project tests\RunRecap.Tests`
+Run: `dotnet run --project tests\RunRecap.Tests`
 Expected: build errors, including `CS0246: The type or namespace name 'Highlight' could not be found` and `CS0103: The name 'ChartMath' does not exist`.
 
 - [ ] **Step 3: Implement**
@@ -435,7 +435,7 @@ public static class RecapBuilder
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `& 'C:\Program Files\dotnet\dotnet.exe' run --project tests\RunRecap.Tests`
+Run: `dotnet run --project tests\RunRecap.Tests`
 Expected: `27/27 passed`.
 
 ---
@@ -601,7 +601,7 @@ In `src/RunRecap/Game/Tracker.cs`, directly below `public static IRunState? Curr
 
 - [ ] **Step 3: Build**
 
-Run: `& 'C:\Program Files\dotnet\dotnet.exe' build RunRecap.sln -c Release --nologo -v q`
+Run: `dotnet build RunRecap.sln -c Release --nologo -v q`
 Expected: `Build succeeded.`, 0 errors. `RecapUi` still compiles against the old `RecapBuilder.Build` signature, because `victory` is optional.
 
 ---
@@ -1627,8 +1627,8 @@ internal static class RecapUi
 
 Run:
 ```powershell
-& 'C:\Program Files\dotnet\dotnet.exe' build RunRecap.sln -c Release --nologo -v q
-& 'C:\Program Files\dotnet\dotnet.exe' run --project tests\RunRecap.Tests
+dotnet build RunRecap.sln -c Release --nologo -v q
+dotnet run --project tests\RunRecap.Tests
 ```
 Expected: `Build succeeded.`, 0 errors, then `27/27 passed`.
 

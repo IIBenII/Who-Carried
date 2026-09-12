@@ -1,6 +1,9 @@
 <Project>
-  <!-- Copy to local.props (untracked) and point GameDir at your Slay the Spire 2 install. -->
+  <!-- Copy to local.props (untracked) and fill in this machine's paths. -->
   <PropertyGroup>
-    <GameDir>C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2</GameDir>
+    <!-- Your Slay the Spire 2 folder: in Steam, right-click the game > Manage > Browse local files. -->
+    <GameDir></GameDir>
+    <!-- Optional, for tools\deploy.ps1: a dotnet.exe with the .NET 9 SDK, if the one on PATH isn't. -->
+    <DotnetPath></DotnetPath>
   </PropertyGroup>
 </Project>

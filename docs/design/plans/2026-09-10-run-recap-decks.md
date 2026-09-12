@@ -123,7 +123,7 @@ public static class DeckBuilderTests
 
 - [ ] **Step 2: Run the tests, expecting a compile failure** (`DeckCard` / `DeckBuilder` not found)
 
-Run: `& 'C:\Program Files\dotnet\dotnet.exe' build tests\RunRecap.Tests --nologo -v q`
+Run: `dotnet build tests\RunRecap.Tests --nologo -v q`
 
 - [ ] **Step 3: Implement**
 

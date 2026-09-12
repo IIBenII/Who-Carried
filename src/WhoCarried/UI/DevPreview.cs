@@ -1,0 +1,259 @@
+using Godot;
+using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Models;
+using WhoCarried.Core;
+using WhoCarried.Game;
+
+namespace WhoCarried.UI;
+
+/// <summary>
+/// Developer-only visual check. If data/preview.flag exists, opens the panel with sample data shortly after start-up,
+/// saves a screenshot of each tab plus the exported card into data/, then closes. Inert otherwise.
+/// </summary>
+internal static class DevPreview
+{
+    private static readonly string[] TabNames = { "scoreboard", "awards", "sources", "debuffs", "timeline", "defense", "decks" };
+
+    public static void StartIfFlagged(string dataDir)
+    {
+        if (!File.Exists(Path.Combine(dataDir, "preview.flag"))) return;
+        Later.Run(10, () => Run(dataDir));
+    }
+
+    /// <param name="Advance">Adds a new fight to the sample run (an Act 4 heart fight) and returns the updated view.</param>
+    private sealed record Sample(RecapView View, Func<string?, Texture2D?> Icons, Func<ulong, string, CardModel?> CardFor,
+                                 Func<RecapView> Advance);
+
+    private static void Run(string dataDir)
+    {
+        // The flag can hold a party size (1–4) to check the hand's other layouts, or "m1", "m2"… for the installed
+        // modded characters four at a time (to check their art); four base characters otherwise.
+        string wanted = "";
+        try { wanted = File.ReadAllText(Path.Combine(dataDir, "preview.flag")).Trim(); }
+        catch (Exception) { }
+        CharacterModel[] all = ModelDb.AllCharacters.ToArray();
+        CharacterModel[] characters;
+        if (wanted.StartsWith('m') && int.TryParse(wanted[1..], out int page))
+        {
+            string[] vanilla = { "IRONCLAD", "SILENT", "REGENT", "NECROBINDER", "DEFECT" };
+            CharacterModel[] modded = all.Where(c => !vanilla.Contains(c.Id.Entry)).ToArray();
+            characters = modded.Skip((Math.Max(1, page) - 1) * 4).Take(4).ToArray();
+            Tracker.Note($"preview: modded characters {string.Join(", ", characters.Select(c => c.Id.Entry))} (of {modded.Length})");
+        }
+        else
+        {
+            characters = all.Take(int.TryParse(wanted, out int count) ? Math.Clamp(count, 1, 4) : 4).ToArray();
+        }
+        if (characters.Length == 0) characters = all.Take(4).ToArray();
+        Sample sample = BuildSample(characters);
+        TimelineTab.PreviewDiagnostics = true;
+        Climb.IgnoreHover = true;
+        PanelHandle handle = RecapUi.ShowView(sample.View, sample.Icons, new CardVisuals(sample.CardFor));
+        CaptureTab(0);
+
+        // Live check: push a newer view into the open recap and capture the scoreboard after the transitions settle.
+        void CaptureLive()
+        {
+            if (!GodotObject.IsInstanceValid(handle.Tabs)) return;
+            RecapView later = sample.Advance();
+            handle.Tabs.CurrentTab = 0;
+            RecapUi.Apply(later);
+            Later.Run(1.2, () =>
+            {
+                Image screen = ((SceneTree)Engine.GetMainLoop()).Root.GetTexture().GetImage();
+                screen.SavePng(Path.Combine(dataDir, $"preview-{TabNames.Length + 1}-live.png"));
+                PngExporter.Save(SummaryCard.Create(later, sample.Icons), SummaryCard.Width,
+                    Path.Combine(dataDir, $"preview-{TabNames.Length + 2}-export.png"), error =>
+                    {
+                        Tracker.Note(error == null ? "preview done" : $"preview export failed: {error}");
+                        RecapUi.Hide();
+                    });
+            });
+        }
+
+        void CaptureTab(int index)
+        {
+            if (!GodotObject.IsInstanceValid(handle.Tabs)) return; // someone closed the preview: stop quietly
+            if (index >= TabNames.Length)
+            {
+                CaptureLive();
+                return;
+            }
+            handle.Tabs.CurrentTab = index;
+            if (TabNames[index] == "timeline")
+            {
+                Later.Run(0.5, () => SimulateHover(handle.Tabs));
+                // The idle real cursor can take hover back a frame later; open the readout directly for the screenshot.
+                Later.Run(0.75, () => TimelineTab.PreviewShowFight?.Invoke(sample.View.FightPoints.Count * 2 / 3));
+            }
+            Later.Run(0.9, () =>
+            {
+                Image screen = ((SceneTree)Engine.GetMainLoop()).Root.GetTexture().GetImage();
+                screen.SavePng(Path.Combine(dataDir, $"preview-{index + 1}-{TabNames[index]}.png"));
+                CaptureTab(index + 1);
+            });
+        }
+    }
+
+    /// <summary>Moves a virtual mouse over the chart so the screenshot shows the hover readout.</summary>
+    private static void SimulateHover(Node tabs)
+    {
+        if (tabs.FindChild(TimelineTab.HoverLayerName, recursive: true, owned: false) is not Control layer)
+        {
+            Tracker.Note("preview hover: chart hover layer not found");
+            return;
+        }
+        var motion = new InputEventMouseMotion { Position = layer.GlobalPosition + layer.Size * new Vector2(0.62f, 0.5f) };
+        motion.GlobalPosition = motion.Position;
+        Control? under = layer.GetViewport().GuiGetHoveredControl();
+        layer.GetViewport().PushInput(motion, inLocalCoords: true);
+        Tracker.Note($"preview hover: layer at {layer.GlobalPosition} size {layer.Size} visible {layer.IsVisibleInTree()}, " +
+                     $"pushed {motion.Position}, hovered before {under?.Name}, after {layer.GetViewport().GuiGetHoveredControl()?.Name}");
+    }
+
+    /// <summary>A sample debuff named the way the game names it (falls back to the given label).</summary>
+    private static SourceRef Debuff(string id, string fallback)
+    {
+        string label = fallback;
+        try
+        {
+            if (ModelDb.AllPowers.FirstOrDefault(p => p.Id.Entry == id) is PowerModel power)
+                label = GameText.Title(power.Title, fallback);
+        }
+        catch (Exception)
+        {
+            // keep the fallback
+        }
+        return new SourceRef(SourceKind.Power, id, label);
+    }
+
+    private static Sample BuildSample(CharacterModel[] characters)
+    {
+        string[] names = { "Ash", "Mika", "Sam", "Jo" };
+        var players = new List<PlayerInfo>();
+        var deckModels = new Dictionary<ulong, List<CardModel>>();
+        for (int i = 0; i < characters.Length; i++)
+        {
+            CharacterModel character = characters[i];
+            ulong id = (ulong)(i + 1);
+            players.Add(new PlayerInfo(id, names[i], GameReader.CharacterName(character),
+                GameReader.CharacterHex(character, i), character.Id.Entry));
+            deckModels[id] = character.StartingDeck
+                .Concat(character.CardPool.AllCards.Where(card => card.Rarity != CardRarity.Basic).Take(10))
+                .ToList();
+        }
+
+        // Sample roles wrap round a smaller party (a lone player gets everyone's debuffs).
+        PlayerInfo P(int i) => players[i % players.Count];
+        var stats = new RunStats();
+        var rng = new Random(7);
+        SourceRef vulnerable = Debuff("VULNERABLE_POWER", "Vulnerable");
+        SourceRef weak = Debuff("WEAK_POWER", "Weak");
+        SourceRef poison = Debuff("POISON_POWER", "Poison");
+        SourceRef doom = Debuff("DOOM_POWER", "Doom");
+        SourceRef frail = Debuff("FRAIL_POWER", "Frail");
+        SourceRef piercingWail = Debuff("PIERCING_WAIL_POWER", "Piercing Wail");
+        var shiv = new SourceRef(SourceKind.Card, "SHIV", "Shiv");
+        int floor = 1;
+        for (int act = 1; act <= 3; act++)
+        {
+            for (int fight = 0; fight < 5; fight++, floor += 3)
+            {
+                string room = fight == 4 ? "boss" : fight == 2 ? "elite" : fight == 1 && act == 2 ? "unknown" : "monster";
+                stats.BeginFight(act, floor, fight == 4 ? "Boss" : fight == 2 ? "Elite fight" : "Hallway fight", room);
+                foreach (PlayerInfo p in players)
+                {
+                    List<CardModel> attacks = deckModels[p.NetId].Where(card => card.Type == CardType.Attack).ToList();
+                    for (int hit = 0; hit < 4 && attacks.Count > 0; hit++)
+                    {
+                        CardModel card = attacks[rng.Next(attacks.Count)];
+                        int amount = rng.Next(8, 30) * act * (fight == 4 ? 2 : 1);
+                        stats.RecordDamage(p.NetId, new SourceRef(SourceKind.Card, card.Id.Entry,
+                            GameText.Title(card.TitleLocString, card.Id.Entry)), amount, blocked: rng.Next(0, 3) == 0 ? rng.Next(3, 12) : 0);
+                    }
+                    stats.RecordBlocked(p.NetId, rng.Next(10, 40) * act);
+                }
+                stats.RecordDamage(P(1).NetId, new SourceRef(SourceKind.Power, "POISON_POWER", "Poison"),
+                    rng.Next(10, 40) * act);
+                if (fight % 2 == 1)
+                    stats.RecordDamage(P(2).NetId, new SourceRef(SourceKind.Power, "DOOM_POWER", "Doom"),
+                        rng.Next(20, 60) * act);
+                stats.RecordDamage(P(3).NetId, new SourceRef(SourceKind.Orb, "LIGHTNING_ORB", "Lightning"), rng.Next(6, 24) * act);
+
+                stats.RecordDebuffApplied(P(0).NetId, vulnerable, rng.Next(2, 5));
+                stats.RecordDebuffApplied(P(0).NetId, weak, rng.Next(0, 2));
+                stats.RecordDebuffApplied(P(1).NetId, poison, rng.Next(6, 14) * act);
+                stats.RecordDebuffApplied(P(1).NetId, weak, rng.Next(1, 4));
+                stats.RecordDebuffApplied(P(1).NetId, vulnerable, rng.Next(0, 2));
+                stats.RecordDebuffApplied(P(2).NetId, doom, rng.Next(10, 30) * act);
+                stats.RecordDebuffApplied(P(2).NetId, vulnerable, rng.Next(0, 3));
+                if (fight == 4) stats.RecordDebuffApplied(P(0).NetId, frail, 2);
+                stats.RecordDebuffBonus(P(0).NetId, vulnerable, rng.Next(5, 20) * act);
+                if (fight % 2 == 0) stats.RecordDebuffBonus(P(2).NetId, vulnerable, rng.Next(2, 8) * act);
+                stats.RecordDebuffPrevented(P(1).NetId, weak, rng.Next(4, 12) * act);
+                stats.RecordDebuffPrevented(P(0).NetId, weak, rng.Next(0, 4) * act);
+                foreach (PlayerInfo p in players)
+                {
+                    stats.RecordDebuffReceived(p.NetId, weak, rng.Next(0, 3));
+                    stats.RecordDebuffReceived(p.NetId, frail, rng.Next(0, 2));
+                    stats.RecordDebuffReceived(p.NetId, vulnerable, rng.Next(0, 3));
+                    stats.RecordDebuffCost(p.NetId, vulnerable, RunStats.CostTaken, rng.Next(0, 9) * act);
+                    stats.RecordDebuffCost(p.NetId, weak, RunStats.CostDealt, rng.Next(0, 12) * act);
+                    stats.RecordDebuffCost(p.NetId, frail, RunStats.CostBlock, rng.Next(0, 6) * act);
+                }
+                if (players.Count > 3)
+                {
+                    stats.RecordDebuffApplied(P(3).NetId, weak, rng.Next(1, 4));
+                    stats.RecordDebuffPrevented(P(3).NetId, weak, rng.Next(2, 9) * act);
+                    stats.RecordDebuffBonus(P(3).NetId, vulnerable, rng.Next(0, 6) * act);
+                }
+                stats.RecordDebuffApplied(P(1).NetId, piercingWail, 6);
+                stats.RecordDebuffPrevented(P(1).NetId, piercingWail, rng.Next(4, 14) * act);
+                stats.RecordCardCreated(P(1).NetId, shiv, rng.Next(2, 6));
+                if (fight % 2 == 0) stats.RecordCardCreated(P(2).NetId, new SourceRef(SourceKind.Card, "SOVEREIGN_BLADE", "Sovereign Blade"));
+                stats.EndFight();
+            }
+        }
+
+        // A close call for "Clutch", and the game's badges as a finished run would have them.
+        stats.RecordHp(P(2).NetId, 6, 72);
+        stats.Finished = true;
+        stats.Victory = true;
+        static EarnedBadge B(string id, string rarity) => new() { Id = id, Rarity = rarity };
+        stats.SetBadges(P(0).NetId, new[] { B("PERFECT", "gold"), B("ELITE", "silver"), B("TEAM_PLAYER", "silver"), B("KACHING", "bronze") });
+        if (players.Count > 1) stats.SetBadges(P(1).NetId, new[] { B("DEBUFFER", "silver"), B("SPEEDY", "bronze") });
+        if (players.Count > 2) stats.SetBadges(P(2).NetId, Array.Empty<EarnedBadge>());
+        if (players.Count > 3) stats.SetBadges(P(3).NetId, new[] { B("ELITE", "bronze"), B("SPEEDY", "silver") });
+
+        Dictionary<ulong, DefenseTotals> defense = players.ToDictionary(
+            p => p.NetId, _ => new DefenseTotals(rng.Next(150, 400), rng.Next(60, 200)));
+        Dictionary<ulong, IReadOnlyList<DeckCard>> decks = deckModels.ToDictionary(
+            kv => kv.Key, kv => GameReader.DeckFacts(kv.Value));
+        RecapView view = RecapBuilder.Build(stats, players, defense, "Victory on floor 43", victory: true, decks: decks,
+            badgeText: GameReader.BadgeText, facts: new RunFacts(43, 6, 4899, "3YKUYH5798ZF"));
+
+        Func<string?, Texture2D?> icons = GameReader.WithPowerIcons(id =>
+            characters.FirstOrDefault(c => c.Id.Entry == id) is CharacterModel c ? GameReader.CharacterIcon(c) : null);
+        Func<ulong, string, CardModel?> cardFor = (playerId, cardId) =>
+            deckModels.TryGetValue(playerId, out List<CardModel>? inDeck) ? inDeck.FirstOrDefault(card => card.Id.Entry == cardId) : null;
+
+        RecapView Advance()
+        {
+            stats.BeginFight(4, 50, "Corrupt Heart", "boss");
+            CardModel? attack = deckModels[P(0).NetId].FirstOrDefault(card => card.Type == CardType.Attack);
+            if (attack != null)
+                stats.RecordDamage(P(0).NetId, new SourceRef(SourceKind.Card, attack.Id.Entry,
+                    GameText.Title(attack.TitleLocString, attack.Id.Entry)), 1500);
+            stats.RecordDamage(P(1).NetId, new SourceRef(SourceKind.Power, "POISON_POWER", "Poison"), 380);
+            stats.RecordDamage(P(2).NetId, new SourceRef(SourceKind.Power, "DOOM_POWER", "Doom"), 420);
+            stats.RecordDebuffApplied(P(2).NetId, weak, 6);
+            stats.RecordDebuffPrevented(P(2).NetId, weak, 90);
+            stats.RecordDebuffBonus(P(0).NetId, vulnerable, 120);
+            stats.EndFight();
+            return RecapBuilder.Build(stats, players, defense, "Victory on floor 50", victory: true, decks: decks,
+                badgeText: GameReader.BadgeText, facts: new RunFacts(50, 6, 5320, "3YKUYH5798ZF"));
+        }
+
+        return new Sample(view, icons, cardFor, Advance);
+    }
+}
