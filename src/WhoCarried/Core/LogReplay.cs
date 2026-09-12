@@ -15,6 +15,7 @@ public static class LogReplay
     private const string Where = @"^\[F(\d+) A(\d+)\] ";
     // Logs written before the rename start with "Run Recap".
     private static readonly Regex Header = new(@"^(?:Who Carried|Run Recap) v\S+ - run (\S+) started", RegexOptions.Compiled);
+    private static readonly Regex Resumed = new(@"^--- resumed run (\S+): \d+ fights restored", RegexOptions.Compiled);
     private static readonly Regex Player = new(@"^player (\d+) = (.+) \((.*)\) #([0-9a-fA-F]{6})$", RegexOptions.Compiled);
     private static readonly Regex FightStart = new(Where + @"fight start: (.*?)(?: \[(\w+)\])?$", RegexOptions.Compiled);
     private static readonly Regex FightEnd = new(Where + @"fight end", RegexOptions.Compiled);
@@ -32,6 +33,10 @@ public static class LogReplay
     public static string HeaderLine(string version, string runKey, DateTime started) =>
         $"Who Carried v{version} - run {runKey} started {started.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)}";
 
+    /// <summary>Written when a saved run is picked up again. Its key wins over the header's: see <see cref="RunStatsStore.LoadIfResumable"/>.</summary>
+    public static string ResumedLine(string runKey, int fightsRestored) =>
+        $"--- resumed run {runKey}: {fightsRestored} fights restored ---";
+
     /// <param name="title">Display name for a model id (a card that made a pet attack); null falls back to the id.</param>
     public static Result Parse(IEnumerable<string> lines, Func<string, string?>? title = null)
     {
@@ -48,7 +53,7 @@ public static class LogReplay
         foreach (string line in lines)
         {
             Match m;
-            if ((m = Header.Match(line)).Success)
+            if ((m = Header.Match(line)).Success || (m = Resumed.Match(line)).Success)
             {
                 runKey = m.Groups[1].Value;
             }

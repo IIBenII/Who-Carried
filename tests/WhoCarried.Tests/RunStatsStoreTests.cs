@@ -60,6 +60,39 @@ public static class RunStatsStoreTests
         Check.True(RunStatsStore.LoadIfResumable(path, "SEED:123") == null, "finished run ignored");
     }
 
+    // In co-op a guest's new run is stamped with the guest's clock, but a loaded save carries the host's, so the
+    // same run comes back with a different start time.
+    [Test]
+    public static void LoadedSaveResumesTheSameSeedDespiteANewStartTime()
+    {
+        string path = TempFile();
+        RunStatsStore.Save(Sample("SEED:1789237698"), path);
+        RunStats? loaded = RunStatsStore.LoadIfResumable(path, "SEED:1789237700", loadedFromSave: true);
+        Check.True(loaded != null, "resumed");
+        Check.Equal(9, loaded!.Get(1)!.DamageDealt, "stats kept");
+        Check.Equal("SEED:1789237700", loaded.RunKey, "takes the game's current key");
+    }
+
+    [Test]
+    public static void NewRunOnTheSameSeedStartsFresh()
+    {
+        string path = TempFile();
+        RunStatsStore.Save(Sample("SEED:1789237698"), path);
+        Check.True(RunStatsStore.LoadIfResumable(path, "SEED:1789240000", loadedFromSave: false) == null, "new run");
+    }
+
+    [Test]
+    public static void LoadedSaveOfAnotherSeedOrAFinishedRunStartsFresh()
+    {
+        string path = TempFile();
+        RunStatsStore.Save(Sample("SEED:1789237698"), path);
+        Check.True(RunStatsStore.LoadIfResumable(path, "OTHER:1789237700", loadedFromSave: true) == null, "other seed");
+        RunStats finished = Sample("SEED:1789237698");
+        finished.Finished = true;
+        RunStatsStore.Save(finished, path);
+        Check.True(RunStatsStore.LoadIfResumable(path, "SEED:1789237700", loadedFromSave: true) == null, "finished");
+    }
+
     [Test]
     public static void CorruptOrMissingFileIsIgnored()
     {

@@ -251,7 +251,26 @@ internal static class GameReader
         return texture;
     }
 
-    /// <summary>Stable across Save &amp; Quit: seed + the run's start time (set before RunStarted fires).</summary>
+    /// <summary>
+    /// True when the run starting now was loaded from a save (Continue, or rejoining a co-op run). The game bumps the
+    /// save's reload count before loading it; a new run starts at 0. False if the count can't be read.
+    /// </summary>
+    public static bool LoadedFromSave()
+    {
+        try
+        {
+            return (int)(AccessTools.Field(typeof(RunManager), "_numReloads")?.GetValue(RunManager.Instance) ?? 0) > 0;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Seed + the run's start time (set before RunStarted fires). Stable across Save &amp; Quit, except that a co-op
+    /// guest's first reload swaps its own start time for the host's.
+    /// </summary>
     public static string RunKey(IRunState run)
     {
         long start = 0;

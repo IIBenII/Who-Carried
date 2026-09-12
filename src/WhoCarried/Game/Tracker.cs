@@ -57,7 +57,7 @@ internal static class Tracker
     {
         _run = run;
         string key = GameReader.RunKey(run);
-        RunStats? resumed = RunStatsStore.LoadIfResumable(StatsPath, key);
+        RunStats? resumed = RunStatsStore.LoadIfResumable(StatsPath, key, GameReader.LoadedFromSave());
         _stats = resumed ?? new RunStats { RunKey = key };
         if (resumed == null)
         {
@@ -70,7 +70,7 @@ internal static class Tracker
             _log?.Reset(LogReplay.HeaderLine(ModEntry.Version, key, DateTime.Now));
         }
         else
-            _log?.Write($"--- resumed run {key}: {_stats.Fights.Count} fights restored ---");
+            _log?.Write(LogReplay.ResumedLine(key, _stats.Fights.Count));
 
         IReadOnlyList<PlayerInfo> players = GameReader.Players(run);
         _names = players.ToDictionary(p => p.NetId, p => p.Name);

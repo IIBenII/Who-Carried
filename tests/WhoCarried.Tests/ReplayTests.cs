@@ -65,6 +65,18 @@ public static class ReplayTests
     }
 
     [Test]
+    public static void AResumeUnderANewKeyReplacesTheHeadersKey()
+    {
+        string[] log =
+        {
+            LogReplay.HeaderLine("0.2.0", "SEED2:1789237698", new DateTime(2026, 9, 12, 19, 28, 0)),
+            LogReplay.ResumedLine("SEED2:1789237700", 18),
+        };
+        Check.Equal("--- resumed run SEED2:1789237700: 18 fights restored ---", log[1], "resume line");
+        Check.Equal("SEED2:1789237700", LogReplay.Parse(log).RunKey, "the latest key wins");
+    }
+
+    [Test]
     public static void PrettyTurnsIdsIntoNames()
     {
         Check.Equal("Unleash", LogReplay.Pretty("UNLEASH"), "plain");
