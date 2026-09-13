@@ -98,6 +98,74 @@ public static class DebuffSharingTests
         Check.Equal("2:4,1:2", Describe(ledger.Lifetime()), "lifetime keeps everything");
     }
 
+    [Test]
+    public static void EqualStacksTakeTurnsOnTies()
+    {
+        // Two Vulnerable each: every odd bonus is an exact tie, and the spare point goes round.
+        var ledger = new StackLedger();
+        ledger.Add(1, 2);
+        ledger.Add(2, 2);
+        Check.Equal("1:3,2:2", Show(ledger.Share(5)), "the first tie goes to whoever stacked first");
+        Check.Equal("1:2,2:3", Show(ledger.Share(5)), "the next is the other player's");
+        Check.Equal("1:2,2:2", Show(ledger.Share(4)), "no tie, no turn used");
+        Check.Equal("1:3,2:2", Show(ledger.Share(5)), "back to the first");
+    }
+
+    [Test]
+    public static void TurnsKeepTheirOrderAsStacksWearOff()
+    {
+        // Player 1's stack wears off first; 2 and 3 are left tied, and still take turns in the order they stacked.
+        var ledger = new StackLedger();
+        ledger.Add(1, 1);
+        ledger.Add(2, 2);
+        ledger.Add(3, 2);
+        ledger.SyncTo(4);
+        Check.Equal("2:3,3:2", Show(ledger.Share(5)), "2 first");
+        Check.Equal("2:2,3:3", Show(ledger.Share(5)), "then 3");
+        Check.Equal("2:3,3:2", Show(ledger.Share(5)), "then 2 again");
+    }
+
+    [Test]
+    public static void UnequalStacksStillGoByTheLargestFraction()
+    {
+        var ledger = new StackLedger();
+        ledger.Add(1, 1);
+        ledger.Add(2, 2);
+        Check.Equal("1:1,2:3", Show(ledger.Share(4)), "1.333 and 2.667: the spare goes to 2");
+        Check.Equal("1:1,2:3", Show(ledger.Share(4)), "every time: it isn't a tie");
+    }
+
+    [Test]
+    public static void ALedgerWithNoPlayerStacksLeftSharesNothing()
+    {
+        var ledger = new StackLedger();
+        ledger.Add(null, 2);
+        Check.Equal("", Show(ledger.Share(5)), "an enemy's own stacks");
+        ledger.Add(1, 1);
+        ledger.SyncTo(0);
+        Check.Equal("", Show(ledger.Share(5)), "all worn off");
+    }
+
+    [Test]
+    public static void PlayersWithEqualStacksEndWithinAPointOverAFight()
+    {
+        for (int players = 2; players <= 5; players++)
+        {
+            var ledger = new StackLedger();
+            for (ulong p = 1; p <= (ulong)players; p++) ledger.Add(p, 2);
+            var totals = new Dictionary<ulong, int>();
+            var rng = new Random(players);
+            for (int hit = 0; hit < 40; hit++)
+                foreach ((ulong p, int points) in ledger.Share(rng.Next(1, 30)))
+                    totals[p] = totals.GetValueOrDefault(p) + points;
+            int spread = totals.Values.Max() - totals.Values.Min();
+            Check.True(spread <= 1, $"{players} players: {Show(totals)}");
+        }
+    }
+
     private static string Describe(IReadOnlyList<(ulong Player, int Weight)> weights) =>
         string.Join(",", weights.Select(w => $"{w.Player}:{w.Weight}"));
+
+    private static string Show(IReadOnlyDictionary<ulong, int> shares) =>
+        string.Join(",", shares.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}"));
 }

@@ -185,7 +185,7 @@ internal static class Tracker
             int prevented = kept[i];
             if (prevented <= 0) continue;
             SourceRef debuff = DebuffRef(weak.Power);
-            foreach ((ulong player, int share) in DebuffBonus.Split(prevented, DebuffBonusTracker.Weights(weak.Power)))
+            foreach ((ulong player, int share) in DebuffBonusTracker.Share(weak.Power, prevented))
             {
                 if (share <= 0) continue;
                 _stats.RecordDebuffPrevented(player, debuff, share);
@@ -275,7 +275,7 @@ internal static class Tracker
             int bonus = bonuses[i];
             if (bonus <= 0) continue;
             SourceRef debuff = DebuffRef(amp.Power);
-            foreach ((ulong player, int share) in DebuffBonus.Split(bonus, DebuffBonusTracker.Weights(amp.Power)))
+            foreach ((ulong player, int share) in DebuffBonusTracker.Share(amp.Power, bonus))
             {
                 if (share <= 0 || player == hitter) continue;
                 _stats.RecordDebuffBonus(player, debuff, share);

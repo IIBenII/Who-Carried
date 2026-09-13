@@ -10,6 +10,9 @@ public sealed class StackLedger
     private readonly List<(ulong? Player, int Stacks)> _queue = new();
     private readonly List<(ulong Player, int Stacks)> _lifetime = new();
 
+    /// <summary>Who wins the next exact tie, among the players in the order they first applied.</summary>
+    private readonly TieTurns _ties = new();
+
     /// <summary>Stacks that landed; <paramref name="player"/> null for stacks no player applied (they still wear off in turn).</summary>
     public void Add(ulong? player, int stacks)
     {
@@ -63,6 +66,21 @@ public sealed class StackLedger
             else active[at] = (id, active[at].Weight + stacks);
         }
         return active;
+    }
+
+    /// <summary>
+    /// Shares <paramref name="amount"/> (what the debuff did on a hit) by each player's stacks still on the enemy, in
+    /// whole points. Exact ties take turns, going round the players in the order they first applied, so equal stacks
+    /// even out over a fight. Empty when no player's stacks are left.
+    /// </summary>
+    public IReadOnlyDictionary<ulong, int> Share(int amount)
+    {
+        var active = Active().ToDictionary(e => e.Player, e => e.Weight);
+        int[] points = _ties.Split(amount, _lifetime.Select(e => (decimal)active.GetValueOrDefault(e.Player)).ToList());
+        var shares = new Dictionary<ulong, int>();
+        for (int i = 0; i < _lifetime.Count; i++)
+            if (points[i] > 0) shares[_lifetime[i].Player] = points[i];
+        return shares;
     }
 
     /// <summary>Every stack each player ever put in, in the order they first applied.</summary>

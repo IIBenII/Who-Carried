@@ -161,6 +161,27 @@ internal static class DebuffBonusTracker
             IReadOnlyList<(ulong Player, int Weight)> active = ledger.Active();
             if (active.Count > 0) return active;
         }
+        return Fallback(power, ledger);
+    }
+
+    /// <summary>
+    /// Shares <paramref name="amount"/> that this debuff did on a hit, in whole points, by the same weights as
+    /// <see cref="Weights"/>. While players' stacks are on the enemy, exact ties take turns (equal Vulnerable or Weak
+    /// evens out over a fight); the fallbacks split plainly.
+    /// </summary>
+    public static IReadOnlyDictionary<ulong, int> Share(PowerModel power, int amount)
+    {
+        if (Stacks.TryGetValue(power, out StackLedger? ledger))
+        {
+            ledger.SyncTo(power.Amount);
+            if (ledger.Active().Count > 0) return ledger.Share(amount);
+        }
+        return DebuffBonus.Split(amount, Fallback(power, ledger));
+    }
+
+    /// <summary>No player's stacks left: the power's own applier, failing that everyone who ever stacked it.</summary>
+    private static IReadOnlyList<(ulong Player, int Weight)> Fallback(PowerModel power, StackLedger? ledger)
+    {
         if (FactsExtractor.PlayerIdOf(power.Applier) is ulong id) return new[] { (id, 1) };
         return ledger?.Lifetime() ?? Array.Empty<(ulong, int)>();
     }

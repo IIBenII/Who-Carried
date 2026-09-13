@@ -131,7 +131,9 @@ Unit tests on `SharedPile` (pure; no game needed), in `tests/WhoCarried.Tests/Sh
 Not covered by unit tests: the wiring into the game (hook timing, power instances). It's checked by reading `events.log`
 after a real co-op fight where two players stack Poison on the same enemy.
 
-## Follow-up (not in this change)
+## Follow-up
 
-The Vulnerable and Weak splits give exact ties to the first-listed player every time. They could take turns the same
-way.
+The Vulnerable and Weak splits gave exact ties to the first-listed player every time. Done on 2026-09-13: the turn-taking
+moved into `Core/TieTurns`, which `SharedPile` and `StackLedger.Share` both use. A debuff's turns go round the players in
+the order they first applied it, so they hold as older stacks wear off. Temporary Strength-down (Piercing Wail) still
+gives ties to the first-listed player.

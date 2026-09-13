@@ -12,8 +12,8 @@ public sealed class SharedPile
     /// <summary>Owners in the order they first stacked; null is stacks no player applied (an enemy's, or unseen).</summary>
     private readonly List<(ulong? Player, decimal Share)> _shares = new();
 
-    /// <summary>Index into the players (in first-stacked order) of whoever wins the next exact tie.</summary>
-    private int _turn;
+    /// <summary>Who wins the next exact tie, among the players in first-stacked order.</summary>
+    private readonly TieTurns _ties = new();
 
     /// <summary>Scaling leaves decimal dust: a pile this close to its real size counts as matching it.</summary>
     private const decimal Dust = 0.000001m;
@@ -39,26 +39,9 @@ public sealed class SharedPile
         IReadOnlyList<(ulong Player, decimal Share)> players = Shares();
         if (damage <= 0 || players.Count == 0) return credits;
 
-        // In turn order, so the split's "ties go to the earlier one" hands ties out in turn.
-        int n = players.Count;
-        int first = _turn % n;
-        var inTurn = Enumerable.Range(0, n).Select(i => players[(first + i) % n]).ToList();
-        List<decimal> weights = inTurn.Select(p => p.Share).ToList();
-        int[] points = DebuffBonus.SplitIndexed(damage, weights);
-
-        // The same exact parts the split worked from: who got a spare point, and on what fraction.
-        decimal total = weights.Sum();
-        decimal[] exact = weights.Select(w => w * damage / total).ToArray();
-        decimal[] fraction = exact.Select(e => e - Math.Floor(e)).ToArray();
-        bool[] spare = Enumerable.Range(0, n).Select(i => points[i] > Math.Floor(exact[i])).ToArray();
-        int lastTieWinner = -1;
-        for (int i = 0; i < n; i++)
-            if (spare[i] && Enumerable.Range(0, n).Any(j => !spare[j] && fraction[j] == fraction[i]))
-                lastTieWinner = i;
-        if (lastTieWinner >= 0) _turn = ((first + lastTieWinner) % n + 1) % n;
-
-        for (int i = 0; i < n; i++)
-            if (points[i] > 0) credits[inTurn[i].Player] = points[i];
+        int[] points = _ties.Split(damage, players.Select(p => p.Share).ToList());
+        for (int i = 0; i < players.Count; i++)
+            if (points[i] > 0) credits[players[i].Player] = points[i];
         return credits;
     }
 
@@ -75,7 +58,7 @@ public sealed class SharedPile
         if (amount <= 0)
         {
             _shares.Clear();
-            _turn = 0;
+            _ties.Reset();
             return;
         }
         decimal total = _shares.Sum(s => s.Share);
