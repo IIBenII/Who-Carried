@@ -60,7 +60,7 @@ internal static class RecapPanel
         tabs.AddChild(Safe(k, 6, pads[6], () => DecksTab.Create(k, view, cards, live, pads[6])));
 
         var hints = new PadHints();
-        root.AddChild(TopBar(k, view, status, onClose, Save, live, screen.X, stage.Position, hints));
+        root.AddChild(TopBar(k, view, status, onClose, Save, live, screen.X, stage.Position.X, hints));
         stage.AddChild(Nav(k, tabs, hints));
         hints.Attach(root);
         return handle;
@@ -92,7 +92,7 @@ internal static class RecapPanel
     }
 
     /// <summary>The visible screen in UI units (the game scales its canvas; this is the size our layout sees).</summary>
-    private static Vector2 ScreenSize()
+    public static Vector2 ScreenSize()
     {
         try { return ((SceneTree)Engine.GetMainLoop()).Root.GetVisibleRect().Size; }
         catch (Exception) { return new Vector2(1920, 1080); }
@@ -100,15 +100,16 @@ internal static class RecapPanel
 
     /// <summary>
     /// The game's top bar across the screen: "Who Carried? · Victory", floor, time, ascension and team damage with the
-    /// game's icons, the party, then status, Save image and Close.
+    /// game's icons, the party, then status, Save image and Close. Always at the top of the screen at the game's bar
+    /// height; on screens taller than 16:9 the views sit centred in the space below it.
     /// </summary>
     private static Control TopBar(Kit k, RecapView view, Label status, Action onClose, Action onSave, Live live, float screenWidth,
-                                  Vector2 stage, PadHints hints)
+                                  float stageLeft, PadHints hints)
     {
-        var bar = new Control { Size = new Vector2(screenWidth, k.U(74) + stage.Y), MouseFilter = Control.MouseFilterEnum.Ignore };
+        var bar = new Control { Size = new Vector2(screenWidth, k.U(74)), MouseFilter = Control.MouseFilterEnum.Ignore };
         TextureRect art = k.Stretch(GameArt.Get(GameArt.TopBar), 0, 0);
         art.Position = Vector2.Zero;
-        art.Size = new Vector2(screenWidth, stage.Y + k.U(74));
+        art.Size = bar.Size;
         if (art.Texture == null)
         {
             var plain = new ColorRect { Color = new Color("1b2635"), Size = art.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -117,8 +118,8 @@ internal static class RecapPanel
         bar.AddChild(art);
 
         HBoxContainer row = k.Row(28);
-        row.Position = new Vector2(stage.X + k.U(30), stage.Y);
-        row.Size = new Vector2(screenWidth - 2 * (stage.X + k.U(30)), k.U(68));
+        row.Position = new Vector2(stageLeft + k.U(30), 0);
+        row.Size = new Vector2(screenWidth - 2 * (stageLeft + k.U(30)), k.U(68));
         bar.AddChild(row);
 
         HBoxContainer title = k.Row(0);

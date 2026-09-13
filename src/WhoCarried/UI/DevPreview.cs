@@ -47,15 +47,19 @@ internal static class DevPreview
         }
         if (characters.Length == 0) characters = all.Take(4).ToArray();
         Sample sample = BuildSample(characters);
+        // The game's canvas for this display setup (the aspect ratio setting picks the content size and how it fits).
+        Window window = ((SceneTree)Engine.GetMainLoop()).Root;
+        Tracker.Note($"preview screen: canvas {window.GetVisibleRect().Size}, window {window.Size}, " +
+                     $"content {window.ContentScaleSize} {window.ContentScaleAspect}");
         TimelineTab.PreviewDiagnostics = true;
         Climb.IgnoreHover = true;
-        PanelHandle handle = RecapUi.ShowView(sample.View, sample.Icons, new CardVisuals(sample.CardFor));
+        RecapUi.ShowView(sample.View, sample.Icons, new CardVisuals(sample.CardFor));
         CaptureTab(0);
 
         // Live check: push a newer view into the open recap and capture the scoreboard after the transitions settle.
         void CaptureLive()
         {
-            if (!GodotObject.IsInstanceValid(handle.Tabs)) return;
+            if (RecapUi.Open is not PanelHandle handle) return;
             RecapView later = sample.Advance();
             handle.Tabs.CurrentTab = 0;
             RecapUi.Apply(later);
@@ -75,7 +79,8 @@ internal static class DevPreview
 
         void CaptureTab(int index)
         {
-            if (!GodotObject.IsInstanceValid(handle.Tabs)) return; // someone closed the preview: stop quietly
+            // A resize replaces the recap, so look it up each time.
+            if (RecapUi.Open is not PanelHandle handle) return; // someone closed the preview: stop quietly
             if (index >= TabNames.Length)
             {
                 CaptureLive();
@@ -84,7 +89,10 @@ internal static class DevPreview
             handle.Tabs.CurrentTab = index;
             if (TabNames[index] == "timeline")
             {
-                Later.Run(0.5, () => SimulateHover(handle.Tabs));
+                Later.Run(0.5, () =>
+                {
+                    if (RecapUi.Open is PanelHandle open) SimulateHover(open.Tabs);
+                });
                 // The idle real cursor can take hover back a frame later; open the readout directly for the screenshot.
                 Later.Run(0.75, () => TimelineTab.PreviewShowFight?.Invoke(sample.View.FightPoints.Count * 2 / 3));
             }

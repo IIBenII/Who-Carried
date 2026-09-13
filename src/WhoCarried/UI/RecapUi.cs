@@ -15,6 +15,7 @@ internal static class RecapUi
 {
     private const double RefreshDelay = 0.25;
     private const double IdleRefresh = 1.5;
+    private const double ResizeDelay = 0.3;
 
     /// <summary>The key that toggles the recap, as the top-bar tooltip names it.</summary>
     public const string HotkeyName = "F8";
@@ -30,11 +31,20 @@ internal static class RecapUi
     private static bool _refreshPending;
     private static int _generation;
 
+    private static PanelHandle? _handle;
+    private static Func<string?, Texture2D?>? _icons;
+    private static Vector2 _laidOutFor;
+    private static bool _resizePending;
+
+    /// <summary>The open recap, or null. A resize replaces it, so hold on to this only for the moment.</summary>
+    public static PanelHandle? Open => _handle != null && GodotObject.IsInstanceValid(_handle.Root) ? _handle : null;
+
     public static void Install()
     {
         if (Engine.GetMainLoop() is SceneTree tree)
         {
             tree.ProcessFrame += OnFrame;
+            tree.Root.SizeChanged += OnScreenResized;
             Tracker.Changed += OnStatsChanged;
             DevPreview.StartIfFlagged(Tracker.DataDir);
             Replay.StartIfFlagged(Tracker.DataDir);
@@ -70,6 +80,9 @@ internal static class RecapUi
         _currentView = view;
         PanelHandle handle = RecapPanel.Create(view, icons, cards, Hide, h => Export(_currentView ?? view, icons, h));
         _panel = handle.Root;
+        _handle = handle;
+        _icons = icons;
+        _laidOutFor = RecapPanel.ScreenSize();
         _live = handle.Live;
         EnsureLayer().AddChild(handle.Root);
         PadInput.Attach(handle);
@@ -95,6 +108,39 @@ internal static class RecapUi
         _cards = null;
         if (_panel != null && GodotObject.IsInstanceValid(_panel)) _panel.QueueFree();
         _panel = null;
+        _handle = null;
+        _icons = null;
+    }
+
+    /// <summary>
+    /// The game rescales its canvas whenever the window changes (resizing, fullscreen, and with the Auto aspect ratio
+    /// on its own as screens load), and the recap is laid out for one size. Rebuild the open recap once it settles.
+    /// </summary>
+    private static void OnScreenResized()
+    {
+        if (_resizePending || Open == null) return;
+        _resizePending = true;
+        Later.Run(ResizeDelay, () =>
+        {
+            _resizePending = false;
+            Relayout();
+        });
+    }
+
+    /// <summary>Reopens the recap at the new size on the same view, still live if it was.</summary>
+    private static void Relayout()
+    {
+        if (Open is not PanelHandle old || _currentView is not RecapView view || _icons is not { } icons) return;
+        Vector2 screen = RecapPanel.ScreenSize();
+        if (screen == _laidOutFor) return;
+        IRunState? run = _liveRun;
+        int tab = old.Tabs.CurrentTab;
+        PanelHandle handle = ShowView(view, icons, _cards);
+        handle.Tabs.CurrentTab = tab;
+        Tracker.Note($"recap laid out again for {screen}");
+        if (run == null) return;
+        _liveRun = run;
+        IdleTick(_generation);
     }
 
     /// <summary>Called after the victory/defeat screen is ready: open the recap once its banner has animated in.</summary>
