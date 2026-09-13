@@ -190,16 +190,39 @@ internal static class RecapUi
         Apply(BuildView(_liveRun));
     }
 
+    /// <summary>
+    /// Saves the summary card: into the player's Steam screenshots when the game runs on Steam, the same on every OS;
+    /// otherwise as a PNG in the game's data folder.
+    /// </summary>
     private static void Export(RecapView view, Func<string?, Texture2D?> icons, PanelHandle handle)
     {
-        string result = view.Victory switch { true => "victory", false => "defeat", null => "in-progress" };
-        string path = Path.Combine(PngExporter.Folder, $"run-{DateTime.Now:yyyy-MM-dd_HHmm}-{result}.png");
         handle.Status.Text = "Saving...";
-        PngExporter.Save(SummaryCard.Create(view, icons), SummaryCard.Width, path, error =>
+        void Show(string text)
         {
-            Tracker.Note(error == null ? $"exported {path}" : $"export failed: {error}");
-            if (GodotObject.IsInstanceValid(handle.Status))
-                handle.Status.Text = error == null ? $"Saved to Pictures\\{PngExporter.FolderName}" : "Couldn't save the image";
+            if (GodotObject.IsInstanceValid(handle.Status)) handle.Status.Text = text;
+        }
+        PngExporter.Render(SummaryCard.Create(view, icons), SummaryCard.Width, (image, error) =>
+        {
+            if (image == null)
+            {
+                Tracker.Note($"export failed: {error}");
+                Show("Couldn't save the image");
+                return;
+            }
+            if (SteamScreenshot.Available)
+            {
+                SteamScreenshot.Write(image, $"Who Carried? {view.Header}", steamError =>
+                {
+                    Tracker.Note(steamError == null ? "exported to Steam screenshots" : $"Steam export failed: {steamError}");
+                    Show(steamError == null ? "Saved to your Steam screenshots" : "Couldn't save the image");
+                });
+                return;
+            }
+            string result = view.Victory switch { true => "victory", false => "defeat", null => "in-progress" };
+            string path = Path.Combine(PngExporter.FallbackFolder, $"run-{DateTime.Now:yyyy-MM-dd_HHmm}-{result}.png");
+            string? saveError = PngExporter.SavePng(image, path);
+            Tracker.Note(saveError == null ? $"exported {path}" : $"export failed: {saveError}");
+            Show(saveError == null ? $"Saved to {PngExporter.FallbackFolder}" : "Couldn't save the image");
         });
     }
 

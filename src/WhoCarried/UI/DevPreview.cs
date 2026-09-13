@@ -47,6 +47,11 @@ internal static class DevPreview
         }
         if (characters.Length == 0) characters = all.Take(4).ToArray();
         Sample sample = BuildSample(characters);
+        if (wanted == "steam")
+        {
+            CheckSteam(dataDir, sample);
+            return;
+        }
         // The game's canvas for this display setup (the aspect ratio setting picks the content size and how it fits).
         Window window = ((SceneTree)Engine.GetMainLoop()).Root;
         Tracker.Note($"preview screen: canvas {window.GetVisibleRect().Size}, window {window.Size}, " +
@@ -223,6 +228,29 @@ internal static class DevPreview
                 done();
             });
         });
+    }
+
+    /// <summary>
+    /// "steam" in the flag: keeps the rendered card as data/steam-reference.png (to compare with Steam's copy), then
+    /// presses the recap's own Save and screenshots its status. Adds one screenshot to the Steam library per run.
+    /// </summary>
+    private static void CheckSteam(string dataDir, Sample sample)
+    {
+        Tracker.Note($"preview steam: available {SteamScreenshot.Available}");
+        PngExporter.Save(SummaryCard.Create(sample.View, sample.Icons), SummaryCard.Width,
+            Path.Combine(dataDir, "steam-reference.png"), error =>
+            {
+                Tracker.Note($"preview steam: reference {error ?? "saved"}");
+                PanelHandle handle = RecapUi.ShowView(sample.View, sample.Icons, new CardVisuals(sample.CardFor));
+                handle.Save();
+                Later.Run(6, () =>
+                {
+                    ((SceneTree)Engine.GetMainLoop()).Root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, "preview-steam-status.png"));
+                    Tracker.Note($"preview steam: status '{handle.Status.Text}'");
+                    RecapUi.Hide();
+                    Tracker.Note("preview done");
+                });
+            });
     }
 
     /// <summary>Moves a virtual mouse over the chart so the screenshot shows the hover readout.</summary>

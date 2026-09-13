@@ -3,17 +3,45 @@ using WhoCarried.Game;
 
 namespace WhoCarried.UI;
 
-/// <summary>Renders a control offscreen in a SubViewport and saves it as a PNG. Never throws.</summary>
+/// <summary>Renders a control offscreen in a SubViewport and hands back the image, or saves it as a PNG. Never throws.</summary>
 internal static class PngExporter
 {
-    /// <summary>The folder in Pictures that saved images go to. No "?": Windows doesn't allow it in folder names.</summary>
-    public const string FolderName = "Who Carried";
-
-    public static string Folder =>
-        Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyPictures), FolderName);
+    /// <summary>Where images go when Steam isn't running: a folder in the game's own data folder.</summary>
+    public static string FallbackFolder => ProjectSettings.GlobalizePath("user://WhoCarried/images");
 
     /// <param name="onDone">Called with null on success, or an error message.</param>
     public static void Save(Control content, int width, string path, Action<string?> onDone)
+    {
+        Render(content, width, (image, error) =>
+        {
+            if (image == null)
+            {
+                onDone(error);
+                return;
+            }
+            onDone(SavePng(image, path));
+        });
+    }
+
+    /// <summary>Saves the image, making its folder if needed. Returns null on success, or an error message.</summary>
+    public static string? SavePng(Image image, string path)
+    {
+        try
+        {
+            string? dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            Error result = image.SavePng(path);
+            return result == Error.Ok ? null : result.ToString();
+        }
+        catch (Exception e)
+        {
+            Tracker.LogError("export", e);
+            return e.Message;
+        }
+    }
+
+    /// <param name="onDone">Called with the image, or null and an error message.</param>
+    public static void Render(Control content, int width, Action<Image?, string?> onDone)
     {
         var viewport = new SubViewport
         {
@@ -32,14 +60,12 @@ internal static class PngExporter
             viewport.Size = new Vector2I(width, Math.Clamp(height, 1, 8192));
             Later.Run(0.15, () =>
             {
+                Image? image = null;
                 string? error = null;
                 try
                 {
-                    Image image = viewport.GetTexture().GetImage();
-                    string? dir = Path.GetDirectoryName(path);
-                    if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                    Error result = image.SavePng(path);
-                    if (result != Error.Ok) error = result.ToString();
+                    image = viewport.GetTexture().GetImage();
+                    if (image == null) error = "no image";
                 }
                 catch (Exception e)
                 {
@@ -47,7 +73,7 @@ internal static class PngExporter
                     Tracker.LogError("export", e);
                 }
                 viewport.QueueFree();
-                onDone(error);
+                onDone(image, error);
             });
         });
     }

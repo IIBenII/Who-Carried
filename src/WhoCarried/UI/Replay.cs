@@ -1,4 +1,3 @@
-using System.Globalization;
 using Godot;
 using MegaCrit.Sts2.Core.Models;
 using WhoCarried.Core;
@@ -9,8 +8,8 @@ namespace WhoCarried.UI;
 /// <summary>
 /// Rebuilds the recap of the run recorded in data/events.log (the most recent one) with today's rules, if
 /// data/replay.flag exists. Decks, damage taken, healing, end-of-floor HP and badges come from the game's own saved
-/// run; the player's own block from current_run.dat. Opens it in the full recap, screenshots each view into data/, saves the image to
-/// Pictures\Who Carried, then closes. Inert otherwise.
+/// run; the player's own block from current_run.dat. Opens it in the full recap, screenshots each view and the exported
+/// image into data/, then closes. Inert otherwise.
 /// </summary>
 internal static class Replay
 {
@@ -108,15 +107,10 @@ internal static class Replay
 
     private static void Export(RecapView view, Func<string?, Texture2D?> icons, DateTime date, bool victory, string dataDir)
     {
-        string path = Path.Combine(PngExporter.Folder, $"run-{date.ToString("yyyy-MM-dd_HHmm", CultureInfo.InvariantCulture)}-{(victory ? "victory" : "defeat")}.png");
+        string path = Path.Combine(dataDir, $"replay-{Views.Length + 1}-export.png");
         PngExporter.Save(SummaryCard.Create(view, icons, date), SummaryCard.Width, path, error =>
         {
             Tracker.Note(error == null ? $"replay exported {path}" : $"replay export failed: {error}");
-            if (error == null)
-            {
-                try { File.Copy(path, Path.Combine(dataDir, $"replay-{Views.Length + 1}-export.png"), overwrite: true); }
-                catch (Exception e) { Tracker.LogError("replay copy", e); }
-            }
             Tracker.Note("replay done");
             RecapUi.Hide();
         });
@@ -126,7 +120,7 @@ internal static class Replay
     private static string? FindHistory(string startTime)
     {
         if (startTime.Length == 0) return null;
-        string root = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "SlayTheSpire2");
+        string root = OS.GetUserDataDir(); // the game's saves: %APPDATA%\SlayTheSpire2 on Windows, its equivalents elsewhere
         try
         {
             return Directory.Exists(root)
