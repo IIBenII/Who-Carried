@@ -20,6 +20,13 @@ public static class TopBarIconArt
     /// <summary>The game's top-bar buttons are 80×80; the icon box sits at y 8–72 like the Map's.</summary>
     public const float Slot = 80f, BoxTop = 8f;
 
+    /// <summary>
+    /// How far left of centre the icon sits in its slot. The bar's ragged bottom edge has a spike reaching up to y 64.5 at
+    /// x 1653–1660 (1920-wide screens), right under the podium's bottom-right corner at 1656; 8 clears it by about 5, and
+    /// still clears it when the icon grows on hover.
+    /// </summary>
+    public const float NudgeLeft = 8f;
+
     /// <summary>Hover and press, as the game's top-bar buttons do them (no tilt: the owner wants it straight).</summary>
     public const float HoverGrow = 1.1f, HoverBright = 1.1f, PressDim = 0.4f, SettleSeconds = 1f;
 

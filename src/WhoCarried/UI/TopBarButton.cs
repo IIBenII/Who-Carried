@@ -54,7 +54,7 @@ internal static class TopBarButton
             Texture = icon,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            Position = new Vector2((TopBarIconArt.Slot - TopBarIconArt.Width) / 2, TopBarIconArt.BoxTop),
+            Position = new Vector2((TopBarIconArt.Slot - TopBarIconArt.Width) / 2 - TopBarIconArt.NudgeLeft, TopBarIconArt.BoxTop),
             Size = new Vector2(TopBarIconArt.Width, TopBarIconArt.Height),
             PivotOffset = new Vector2(TopBarIconArt.Width / 2f, TopBarIconArt.Height / 2f),
             MouseFilter = Control.MouseFilterEnum.Ignore,
