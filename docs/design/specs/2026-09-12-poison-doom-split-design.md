@@ -135,5 +135,6 @@ after a real co-op fight where two players stack Poison on the same enemy.
 
 The Vulnerable and Weak splits gave exact ties to the first-listed player every time. Done on 2026-09-13: the turn-taking
 moved into `Core/TieTurns`, which `SharedPile` and `StackLedger.Share` both use. A debuff's turns go round the players in
-the order they first applied it, so they hold as older stacks wear off. Temporary Strength-down (Piercing Wail) still
-gives ties to the first-listed player.
+the order they first applied it, so they hold as older stacks wear off. Strength taken off an enemy (Piercing Wail,
+Malaise) followed the same day: its split covers several players and debuffs at once, and who's in it changes from hit to
+hit, so `TieTurnsByKey` remembers each (player, debuff) in the order it first appeared, one set of turns per enemy.

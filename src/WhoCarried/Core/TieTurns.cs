@@ -40,3 +40,32 @@ public sealed class TieTurns
     /// <summary>Back to the first in the list winning the next tie.</summary>
     public void Reset() => _turn = 0;
 }
+
+/// <summary>
+/// <see cref="TieTurns"/> for callers whose list changes from split to split: it remembers every key in the order it
+/// first saw them and lines each split up with that order, so ties go round the same way whoever is in this one.
+/// </summary>
+public sealed class TieTurnsByKey<TKey> where TKey : notnull
+{
+    private readonly List<TKey> _order = new();
+    private readonly TieTurns _ties = new();
+
+    /// <summary>
+    /// Shares <paramref name="amount"/> by weight; share i goes with part i. A key listed twice counts once, with its
+    /// weights added, and its first entry gets the points.
+    /// </summary>
+    public int[] Split(int amount, IReadOnlyList<(TKey Key, decimal Weight)> parts)
+    {
+        foreach ((TKey key, _) in parts)
+            if (!_order.Contains(key)) _order.Add(key);
+        var weights = new decimal[_order.Count];
+        foreach ((TKey key, decimal weight) in parts) weights[_order.IndexOf(key)] += Math.Max(0m, weight);
+        int[] byOrder = _ties.Split(amount, weights);
+
+        var shares = new int[parts.Count];
+        var paid = new HashSet<TKey>();
+        for (int i = 0; i < parts.Count; i++)
+            if (paid.Add(parts[i].Key)) shares[i] = byOrder[_order.IndexOf(parts[i].Key)];
+        return shares;
+    }
+}

@@ -207,7 +207,7 @@ internal static class Tracker
     /// <summary>
     /// Strength an enemy lost to players (Piercing Wail, Dark Shackles for the turn; Malaise for good) made its
     /// attack weaker: the hit would have been bigger by that Strength times the hit's multipliers. The HP difference is
-    /// shared between whoever took the Strength away, in proportion to how much each took.
+    /// shared between whoever took the Strength away, in proportion to how much each took; exact ties take turns.
     /// </summary>
     private static void CreditStrengthLoss(Creature target, decimal amount, ValueProp props, Creature dealer,
                                            CardModel? cardSource, ulong victim, int block, int hp)
@@ -228,7 +228,7 @@ internal static class Tracker
 
         decimal multiplier = DebuffBonusTracker.DamageMultiplier(_run, target, dealer, props, cardSource);
         int prevented = DebuffBonus.HpDifference(amount + removed * multiplier, amount, block, hp);
-        int[] shares = DebuffBonus.SplitIndexed(prevented, parts.Select(p => p.Strength).ToList());
+        int[] shares = DebuffBonusTracker.ShareStrengthLoss(dealer, prevented, parts.Select(p => ((p.Player, p.Debuff.Id), p.Strength)).ToList());
         for (int i = 0; i < parts.Count; i++)
         {
             if (shares[i] <= 0) continue;

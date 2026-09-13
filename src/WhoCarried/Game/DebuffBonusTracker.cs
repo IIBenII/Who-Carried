@@ -124,6 +124,15 @@ internal static class DebuffBonusTracker
             ? byPlayer.Where(kv => kv.Value > 0).Select(kv => (kv.Key, kv.Value)).ToList()
             : Array.Empty<(ulong, int)>();
 
+    private static readonly ConditionalWeakTable<Creature, TieTurnsByKey<(ulong Player, string Debuff)>> StrengthLossTies = new();
+
+    /// <summary>
+    /// Shares HP that Strength taken off this enemy kept off one of its hits, between the players and debuffs that took
+    /// it (share i goes with part i). Exact ties take turns over the enemy's hits.
+    /// </summary>
+    public static int[] ShareStrengthLoss(Creature enemy, int prevented, IReadOnlyList<((ulong Player, string Debuff) Key, decimal Strength)> parts) =>
+        StrengthLossTies.GetOrCreateValue(enemy).Split(prevented, parts);
+
     /// <summary>The pending hit on this target, if a debuff boosted it. Removes it.</summary>
     public static PendingHit? Take(Creature target) => Pending.Remove(target, out PendingHit? hit) ? hit : null;
 
