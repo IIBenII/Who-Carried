@@ -33,5 +33,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="WhoCarried.json" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="UI\Art\TopBarIcon.svg" LogicalName="WhoCarried.TopBarIcon.svg" />
   </ItemGroup>
 </Project>

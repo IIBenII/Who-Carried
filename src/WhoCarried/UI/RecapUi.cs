@@ -16,6 +16,9 @@ internal static class RecapUi
     private const double RefreshDelay = 0.25;
     private const double IdleRefresh = 1.5;
 
+    /// <summary>The key that toggles the recap, as the top-bar tooltip names it.</summary>
+    public const string HotkeyName = "F8";
+
     private static CanvasLayer? _layer;
     private static Control? _panel;
     private static CardVisuals? _cards;

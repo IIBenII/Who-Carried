@@ -1,6 +1,7 @@
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using WhoCarried.Core;
 using WhoCarried.Game;
 
@@ -65,8 +66,9 @@ internal static class DevPreview
                 PngExporter.Save(SummaryCard.Create(later, sample.Icons), SummaryCard.Width,
                     Path.Combine(dataDir, $"preview-{TabNames.Length + 2}-export.png"), error =>
                     {
-                        Tracker.Note(error == null ? "preview done" : $"preview export failed: {error}");
+                        if (error != null) Tracker.Note($"preview export failed: {error}");
                         RecapUi.Hide();
+                        CaptureTopBar(dataDir, () => Tracker.Note("preview done"));
                     });
             });
         }
@@ -93,6 +95,44 @@ internal static class DevPreview
                 CaptureTab(index + 1);
             });
         }
+    }
+
+    /// <summary>
+    /// The game's real top bar with the recap button added the way a run adds it, at rest and hovered. The bar isn't set
+    /// up for a run here, so its labels show placeholders, and its own start-up logs an error when it can't find the
+    /// run's screens (the buttons are ready before that).
+    /// </summary>
+    private static void CaptureTopBar(string dataDir, Action done)
+    {
+        Window root = ((SceneTree)Engine.GetMainLoop()).Root;
+        var layer = new CanvasLayer { Layer = 101, Name = "WhoCarriedPreviewTopBar" };
+        root.AddChild(layer);
+        NTopBar bar = ResourceLoader.Load<PackedScene>("res://scenes/ui/top_bar.tscn").Instantiate<NTopBar>();
+        layer.AddChild(bar);
+        Control? button = TopBarButton.AddTo(bar);
+        if (button == null)
+        {
+            Tracker.Note("top bar preview: no button (icon failed, see the log)");
+            layer.QueueFree();
+            done();
+            return;
+        }
+        Later.Run(0.8, () =>
+        {
+            Control podium = button.GetChild<Control>(0);
+            Control mapIcon = bar.Map.GetNode<Control>("Control/Icon");
+            Tracker.Note($"top bar preview: podium box {podium.GetGlobalRect()}, map icon box {mapIcon.GetGlobalRect()}");
+            (((TextureRect)podium).Texture as ImageTexture)?.GetImage().SavePng(Path.Combine(dataDir, "preview-topbar-icon.png"));
+            root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, "preview-10-topbar.png"));
+            button.EmitSignal(Control.SignalName.MouseEntered);
+            Later.Run(0.8, () =>
+            {
+                root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, "preview-11-topbar-hover.png"));
+                button.EmitSignal(Control.SignalName.MouseExited);
+                layer.QueueFree();
+                done();
+            });
+        });
     }
 
     /// <summary>Moves a virtual mouse over the chart so the screenshot shows the hover readout.</summary>

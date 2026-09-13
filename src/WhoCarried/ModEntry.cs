@@ -24,6 +24,7 @@ public static class ModEntry
         typeof(AfterCombatEndPatch),
         typeof(RunEndedPatch),
         typeof(GameOverScreenPatch),
+        typeof(TopBarPatch),
         typeof(DamageCommandPatch),
     };
 

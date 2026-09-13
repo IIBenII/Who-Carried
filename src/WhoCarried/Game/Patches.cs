@@ -6,6 +6,7 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
@@ -124,5 +125,16 @@ internal static class GameOverScreenPatch
     {
         try { RecapUi.OnGameOverScreen(__instance); }
         catch (Exception e) { Tracker.LogError("NGameOverScreen._Ready", e); }
+    }
+}
+
+/// <summary>The top bar is set up once per run, solo or co-op: add the recap button next to Map.</summary>
+[HarmonyPatch(typeof(NTopBar), nameof(NTopBar.Initialize))]
+internal static class TopBarPatch
+{
+    private static void Postfix(NTopBar __instance)
+    {
+        try { TopBarButton.AddTo(__instance); }
+        catch (Exception e) { Tracker.LogError("NTopBar.Initialize", e); }
     }
 }
