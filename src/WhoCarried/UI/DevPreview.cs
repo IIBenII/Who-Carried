@@ -8,8 +8,9 @@ using WhoCarried.Game;
 namespace WhoCarried.UI;
 
 /// <summary>
-/// Developer-only visual check. If data/preview.flag exists, opens the panel with sample data shortly after start-up,
-/// saves a screenshot of each tab plus the exported card into data/, then closes. Inert otherwise.
+/// Developer-only visual check. If preview.flag exists in the mod's data folder (<see cref="Tracker.DataDir"/>), opens
+/// the panel with sample data shortly after start-up, saves a screenshot of each tab plus the exported card beside it,
+/// then closes. Inert otherwise.
 /// </summary>
 internal static class DevPreview
 {
@@ -231,7 +232,7 @@ internal static class DevPreview
     }
 
     /// <summary>
-    /// "steam" in the flag: keeps the rendered card as data/steam-reference.png (to compare with Steam's copy), then
+    /// "steam" in the flag: keeps the rendered card as steam-reference.png (to compare with Steam's copy), then
     /// presses the recap's own Save and screenshots its status. Adds one screenshot to the Steam library per run.
     /// </summary>
     private static void CheckSteam(string dataDir, Sample sample)

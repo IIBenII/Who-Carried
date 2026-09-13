@@ -4,6 +4,10 @@ The specs and plans the mod was built from, in the order they were written (Sept
 
 **The mod was called "Run Recap" when these were written.** It was renamed **Who Carried?** before release, because another Workshop mod already uses that name. Where the docs say `RunRecap`, the code now says `WhoCarried`: `src\RunRecap\` is `src\WhoCarried\`, `<game>\mods\RunRecap\` is `<game>\mods\WhoCarried\`, and so on. `<game>` is your Slay the Spire 2 folder.
 
+**Two later changes the docs don't show:**
+- The mod's files (`current_run.dat`, `events.log`, the dev preview and replay flags and their screenshots) moved from `<game>\mods\WhoCarried\data\` to a `WhoCarried` folder in the game's save folder: `%APPDATA%\SlayTheSpire2\WhoCarried` on Windows, `~/.local/share/SlayTheSpire2/WhoCarried` on Linux, `~/Library/Application Support/SlayTheSpire2/WhoCarried` on a Mac. The mod moves an old `data` folder over on its first start.
+- **Save image** puts the card in the player's Steam screenshots instead of `Pictures\Who Carried`.
+
 They were written with Claude Code, which is why they mention Claude building, deploying and reading the logs.
 
 | Spec | Plan | What it covers |

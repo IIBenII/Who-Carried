@@ -6,8 +6,8 @@ namespace WhoCarried.UI;
 /// <summary>Renders a control offscreen in a SubViewport and hands back the image, or saves it as a PNG. Never throws.</summary>
 internal static class PngExporter
 {
-    /// <summary>Where images go when Steam isn't running: a folder in the game's own data folder.</summary>
-    public static string FallbackFolder => ProjectSettings.GlobalizePath("user://WhoCarried/images");
+    /// <summary>Where images go when Steam isn't running: beside the mod's other files in the game's save folder.</summary>
+    public static string FallbackFolder => Path.Combine(Tracker.DataDir, "images");
 
     /// <param name="onDone">Called with null on success, or an error message.</param>
     public static void Save(Control content, int width, string path, Action<string?> onDone)

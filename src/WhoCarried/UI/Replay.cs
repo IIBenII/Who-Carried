@@ -6,10 +6,10 @@ using WhoCarried.Game;
 namespace WhoCarried.UI;
 
 /// <summary>
-/// Rebuilds the recap of the run recorded in data/events.log (the most recent one) with today's rules, if
-/// data/replay.flag exists. Decks, damage taken, healing, end-of-floor HP and badges come from the game's own saved
-/// run; the player's own block from current_run.dat. Opens it in the full recap, screenshots each view and the exported
-/// image into data/, then closes. Inert otherwise.
+/// Rebuilds the recap of the run recorded in events.log (the most recent one) with today's rules, if replay.flag
+/// exists; both are in the mod's data folder (<see cref="Tracker.DataDir"/>). Decks, damage taken, healing, end-of-floor
+/// HP and badges come from the game's own saved run; the player's own block from current_run.dat. Opens it in the full
+/// recap, screenshots each view and the exported image into the data folder, then closes. Inert otherwise.
 /// </summary>
 internal static class Replay
 {

@@ -42,15 +42,27 @@ internal static class Tracker
     /// <summary>Appends a free-form line to events.log (exports, preview status).</summary>
     public static void Note(string line) => _log?.Write(line);
 
-    // Not ".json": the game's mod loader scans every .json under mods/ looking for manifests.
+    // Not ".json": it used to live under mods/, where the game's mod loader reads every .json as a manifest.
     private static string StatsPath => Path.Combine(_dataDir, "current_run.dat");
 
     private static string Where => _run == null ? "[--]" : $"[F{_run.TotalFloor} A{_run.CurrentActIndex + 1}]";
 
+    /// <summary>
+    /// The mod's files live in the game's own save folder (user://: %APPDATA%\SlayTheSpire2 on Windows,
+    /// ~/.local/share/SlayTheSpire2 on Linux, ~/Library/Application Support/SlayTheSpire2 on a Mac), not beside the DLL:
+    /// Steam replaces a Workshop mod's folder when it updates, and on a Mac the mods folder is inside the game's app.
+    /// Files an older version left in data/ beside the DLL are moved over.
+    /// </summary>
     public static void Init(string modDir)
     {
-        _dataDir = Path.Combine(modDir, "data");
+        _dataDir = Path.GetFullPath(Godot.ProjectSettings.GlobalizePath("user://WhoCarried"));
+        string oldDir = Path.Combine(modDir, "data");
+        (int moved, string? error) = DataFolderMove.Run(oldDir, _dataDir);
+        try { Directory.CreateDirectory(_dataDir); }
+        catch (Exception e) { Log.Error($"[WhoCarried] can't make {_dataDir}: {e.Message}"); }
         _log = new EventLog(Path.Combine(_dataDir, "events.log"));
+        if (moved > 0) _log.Write($"moved {moved} files here from {oldDir}");
+        if (error != null) Log.Warn($"[WhoCarried] moving files from {oldDir}: {error}");
     }
 
     public static void OnRunStarted(IRunState run)
