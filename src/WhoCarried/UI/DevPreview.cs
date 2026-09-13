@@ -68,7 +68,7 @@ internal static class DevPreview
                     {
                         if (error != null) Tracker.Note($"preview export failed: {error}");
                         RecapUi.Hide();
-                        CaptureTopBar(dataDir, () => Tracker.Note("preview done"));
+                        CaptureTopBar(dataDir, () => CapturePad(dataDir, sample, () => Tracker.Note("preview done")));
                     });
             });
         }
@@ -130,6 +130,88 @@ internal static class DevPreview
                 root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, "preview-11-topbar-hover.png"));
                 button.EmitSignal(Control.SignalName.MouseExited);
                 layer.QueueFree();
+                done();
+            });
+        });
+    }
+
+    /// <summary>
+    /// Presses controller buttons the way a pad would (raw joypad events, through the game's bindings): RB to the next
+    /// tab, the d-pad on the scoreboard's cards, a held left on the Timeline, B to close, then the podium selected on
+    /// the top bar. Logs what each press did and whether the game is in controller mode (it only switches while the
+    /// game window has focus).
+    /// </summary>
+    private static void CapturePad(string dataDir, Sample sample, Action done)
+    {
+        Window root = ((SceneTree)Engine.GetMainLoop()).Root;
+        PadInput.Diagnostics = true;
+        PanelHandle handle = RecapUi.ShowView(sample.View, sample.Icons, new CardVisuals(sample.CardFor));
+        void Press(JoyButton button, bool down = true) => Input.ParseInputEvent(new InputEventJoypadButton { ButtonIndex = button, Pressed = down });
+        void Tap(JoyButton button)
+        {
+            Press(button);
+            Press(button, down: false);
+        }
+        void Shot(string name) => root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, name));
+
+        // Injected presses are handled on the next frame, so each step reports the previous one's result.
+        Later.Run(1.0, () =>
+        {
+            Tap(JoyButton.DpadDown); // the first press after the mouse switches the game to controller mode
+            Tap(JoyButton.RightShoulder); // in the same frame: must still reach the recap
+        });
+        Later.Run(2.0, () =>
+        {
+            Tracker.Note($"preview pad: controller mode {PadInput.ControllerMode}, focus on {root.GuiGetFocusOwner()?.Name}, " +
+                         $"after RB tab {handle.Tabs.CurrentTab} (1 expected)");
+            Shot("preview-12-pad-tab.png");
+            Tap(JoyButton.LeftShoulder);
+            Tap(JoyButton.DpadRight);
+            Tap(JoyButton.DpadRight);
+        });
+        Later.Run(3.0, () =>
+        {
+            Tracker.Note($"preview pad: after LB tab {handle.Tabs.CurrentTab} (0 expected), last {PadInput.LastCommand}");
+            Shot("preview-13-pad-card.png");
+            handle.Tabs.CurrentTab = 4;
+            // Timed from here, not from the start: saving a screenshot takes a noticeable part of a second.
+            Later.Run(0.3, () =>
+            {
+                Press(JoyButton.DpadLeft); // held: the press selects the latest fight, then repeats from 400 ms
+                Later.Run(0.7, () => Press(JoyButton.DpadLeft, down: false));
+                Later.Run(1.3, () =>
+                {
+                    Shot("preview-14-pad-fight.png");
+                    Tap(JoyButton.B);
+                    Later.Run(0.4, () =>
+                    {
+                        Tracker.Note($"preview pad: after B, last {PadInput.LastCommand}, recap open {GodotObject.IsInstanceValid(handle.Root) && handle.Root.IsInsideTree()}");
+                        CapturePodiumFocus(dataDir, done);
+                    });
+                });
+            });
+        });
+    }
+
+    /// <summary>The podium selected with the controller: grown, brightened, with its tooltip.</summary>
+    private static void CapturePodiumFocus(string dataDir, Action done)
+    {
+        Window root = ((SceneTree)Engine.GetMainLoop()).Root;
+        var layer = new CanvasLayer { Layer = 101, Name = "WhoCarriedPreviewTopBarFocus" };
+        root.AddChild(layer);
+        NTopBar bar = ResourceLoader.Load<PackedScene>("res://scenes/ui/top_bar.tscn").Instantiate<NTopBar>();
+        layer.AddChild(bar);
+        Control? button = TopBarButton.AddTo(bar);
+        Later.Run(0.8, () =>
+        {
+            button?.GrabFocus();
+            Tracker.Note($"preview pad: podium focused {button?.HasFocus()}, controller mode {PadInput.ControllerMode}, " +
+                         $"left neighbour {button?.FocusNeighborLeft}");
+            Later.Run(0.8, () =>
+            {
+                root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, "preview-15-podium-focus.png"));
+                layer.QueueFree();
+                PadInput.Diagnostics = false;
                 done();
             });
         });

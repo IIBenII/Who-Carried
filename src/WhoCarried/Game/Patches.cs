@@ -138,3 +138,14 @@ internal static class TopBarPatch
         catch (Exception e) { Tracker.LogError("NTopBar.Initialize", e); }
     }
 }
+
+/// <summary>The game relinks the top bar's controller navigation on every change: keep the podium at its end.</summary>
+[HarmonyPatch(typeof(NTopBar), "UpdateNavigation")]
+internal static class TopBarNavigationPatch
+{
+    private static void Postfix(NTopBar __instance)
+    {
+        try { TopBarButton.JoinNavigation(__instance); }
+        catch (Exception e) { Tracker.LogError("NTopBar.UpdateNavigation", e); }
+    }
+}

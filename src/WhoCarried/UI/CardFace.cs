@@ -162,13 +162,15 @@ internal sealed class CardFace
         Root.MouseFilter = Control.MouseFilterEnum.Pass;
         _home = Root.Position;
         _homeRotation = Root.Rotation;
-        Root.MouseEntered += () => Lift(true);
-        Root.MouseExited += () => Lift(false);
+        // The dev preview ignores the real, idle cursor; the controller still lifts cards there.
+        Root.MouseEntered += () => { if (!Climb.IgnoreHover) SetLifted(true); };
+        Root.MouseExited += () => { if (!Climb.IgnoreHover) SetLifted(false); };
     }
 
-    private void Lift(bool on)
+    /// <summary>Lifts the card or sets it back down: mouse hover, or the controller selecting it.</summary>
+    public void SetLifted(bool on)
     {
-        if (_lifted == on || Climb.IgnoreHover) return;
+        if (_lifted == on) return;
         _lifted = on;
         (Vector2 at, Vector2 size) = Lifted();
         Anim.To(Root, "position", at);

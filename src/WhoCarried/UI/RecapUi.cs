@@ -72,6 +72,7 @@ internal static class RecapUi
         _panel = handle.Root;
         _live = handle.Live;
         EnsureLayer().AddChild(handle.Root);
+        PadInput.Attach(handle);
         return handle;
     }
 

@@ -1,5 +1,6 @@
 using Godot;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.ControllerInput;
 using MegaCrit.Sts2.Core.HoverTips;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -10,8 +11,9 @@ using WhoCarried.Game;
 namespace WhoCarried.UI;
 
 /// <summary>
-/// The podium button in the game's top bar, just left of the Map button: click to open the recap, hover for the game's
-/// tooltip. It grows and brightens like the game's own top-bar buttons, but stays straight.
+/// The podium button in the game's top bar, just left of the Map button: click to open the recap (or reach it with the
+/// controller's top-bar navigation and press A), hover or select it for the game's tooltip. It grows and brightens like
+/// the game's own top-bar buttons, but stays straight.
 /// </summary>
 internal static class TopBarButton
 {
@@ -36,7 +38,46 @@ internal static class TopBarButton
         row.AddChild(button);
         row.MoveChild(button, map.GetIndex());
         Tracker.Note("top bar: recap button added");
+        JoinNavigation(bar);
         return button;
+    }
+
+    private static bool _navigationFailed;
+
+    /// <summary>
+    /// Puts the podium at the right-hand end of the top bar's controller navigation, after the game has linked the
+    /// rest (it relinks whenever potion slots, modifiers or the screen change). Left goes back to where the chain
+    /// ended, down to the relics like the other top-bar items.
+    /// </summary>
+    public static void JoinNavigation(NTopBar bar)
+    {
+        if (_navigationFailed) return;
+        try
+        {
+            if (bar.Map.GetParent()?.GetNodeOrNull<Control>(NodeName) is not Control podium) return;
+            NodePath below = bar.Hp.FocusNeighborBottom;
+            if (below.IsEmpty) return; // not linked yet (no relics on screen)
+            Control end = ChainEnd(bar);
+            end.FocusNeighborRight = podium.GetPath();
+            podium.FocusNeighborLeft = end.GetPath();
+            podium.FocusNeighborRight = podium.GetPath();
+            podium.FocusNeighborTop = podium.GetPath();
+            podium.FocusNeighborBottom = below;
+        }
+        catch (Exception e)
+        {
+            _navigationFailed = true;
+            Tracker.LogError("top bar navigation (the podium stays mouse-only)", e);
+        }
+    }
+
+    /// <summary>The last item in the game's chain: the last modifier, else the boss icon if it can take focus, else the floor.</summary>
+    private static Control ChainEnd(NTopBar bar)
+    {
+        if (Traverse.Create(bar).Field<Control>("_modifiersContainer").Value is Control modifiers && modifiers.Visible
+            && modifiers.GetChildren().OfType<Control>().LastOrDefault() is Control last)
+            return last;
+        return bar.BossIcon.IsVisible() && bar.BossIcon.FocusMode != Control.FocusModeEnum.None ? bar.BossIcon : bar.FloorIcon;
     }
 
     private static Control Build(Texture2D icon)
@@ -46,7 +87,7 @@ internal static class TopBarButton
             Name = NodeName,
             CustomMinimumSize = new Vector2(TopBarIconArt.Slot, TopBarIconArt.Slot),
             MouseFilter = Control.MouseFilterEnum.Stop,
-            FocusMode = Control.FocusModeEnum.None,
+            FocusMode = Control.FocusModeEnum.All,
         };
         // Keep-aspect in the Map icon's box; the texture has no mipmaps, so the game shrinks it like its own icons.
         var art = new TextureRect
@@ -65,6 +106,9 @@ internal static class TopBarButton
         button.MouseExited += behaviour.Leave;
         button.GuiInput += behaviour.Input;
         button.TreeExiting += behaviour.Gone;
+        // Controller: the top bar's d-pad navigation reaches it (JoinNavigation); focused looks like hovered.
+        button.FocusEntered += () => { if (PadInput.ControllerMode) behaviour.Enter(); };
+        button.FocusExited += behaviour.Leave;
         return button;
     }
 
@@ -88,6 +132,13 @@ internal static class TopBarButton
 
         public void Input(InputEvent input)
         {
+            if (input.IsActionPressed(MegaInput.select))
+            {
+                button.AcceptEvent();
+                Leave();
+                RecapUi.Show();
+                return;
+            }
             if (input is not InputEventMouseButton { ButtonIndex: MouseButton.Left } click) return;
             button.AcceptEvent();
             if (click.Pressed)

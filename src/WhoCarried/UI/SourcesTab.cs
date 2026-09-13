@@ -9,7 +9,7 @@ namespace WhoCarried.UI;
 /// </summary>
 internal static class SourcesTab
 {
-    public static Control Create(Kit k, RecapView view, Live live)
+    public static Control Create(Kit k, RecapView view, Live live, PadTab? pad = null)
     {
         Control tab = k.Box(RecapPanel.DesignW, RecapPanel.DesignH);
         // The scroll area starts a little left and above the content, so the rank gem and picture frames that stick
@@ -20,6 +20,7 @@ internal static class SourcesTab
             MouseFilter = Control.MouseFilterEnum.Pass,
         };
         tab.AddChild(scroll);
+        if (pad != null) pad.Scroll = PadTab.Scrolls(scroll, k.U(PadTab.ScrollStep));
         var inset = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         inset.AddThemeConstantOverride("margin_left", k.F(16));
         inset.AddThemeConstantOverride("margin_top", k.F(8));

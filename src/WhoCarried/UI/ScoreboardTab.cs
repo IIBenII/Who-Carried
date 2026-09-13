@@ -9,13 +9,14 @@ namespace WhoCarried.UI;
 /// </summary>
 internal static class ScoreboardTab
 {
-    public static Control Create(Kit k, RecapView view, Live live, bool deal)
+    public static Control Create(Kit k, RecapView view, Live live, bool deal, PadTab? pad = null)
     {
         Control tab = k.Box(RecapPanel.DesignW, RecapPanel.DesignH);
         int n = Players(view).Count;
         Hand hand = new(k, tab, deal);
         hand.Sync(view);
         live.On(hand.Sync);
+        pad?.Rows.Add(hand.Row());
 
         Label note = k.Text("", 14, RecapTheme.Muted);
         note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
@@ -33,7 +34,7 @@ internal static class ScoreboardTab
 
         if (n == 1) tab.AddChild(k.At(Story(k, view, live), 590, 176, 520, -1));
         tab.AddChild(k.At(TopSources(k, view, n == 1 ? 6 : n == 2 ? 4 : 2, live), 1222, 146, 340, -1));
-        tab.AddChild(k.At(Climb.Create(k, view, 1522, 204, 92, interactive: true, live), 40, 682));
+        tab.AddChild(k.At(Climb.Create(k, view, 1522, 204, 92, interactive: true, live, pad), 40, 682));
         return tab;
     }
 
@@ -48,6 +49,10 @@ internal static class ScoreboardTab
         private readonly Kit _k;
         private readonly Control _table;
         private readonly Dictionary<string, PlayerCard> _cards = new();
+
+        /// <summary>The cards in scoreboard order, as the controller steps through them.</summary>
+        private readonly List<PlayerCard> _order = new();
+
         private bool _deal;
 
         public Hand(Kit k, Control table, bool deal)
@@ -84,8 +89,15 @@ internal static class ScoreboardTab
                 card.Place(slots[i], i + 1, animate: !_deal && card.Placed);
                 if (_deal) card.DealIn(i);
             }
+            _order.Clear();
+            _order.AddRange(players.Select(p => _cards[p.Label]));
             _deal = false;
         }
+
+        /// <summary>The cards for the controller: selecting one lifts it as hover does and sets the others down.</summary>
+        public PadRow Row() => new(() => _order.Count, () => 0,
+            i => { for (int j = 0; j < _order.Count; j++) _order[j].Face.SetLifted(j == i); },
+            () => { foreach (PlayerCard card in _order) card.Face.SetLifted(false); });
     }
 
     /// <summary>One player's card on the scoreboard (and in the saved image).</summary>

@@ -13,7 +13,7 @@ internal static class DecksTab
     /// <summary>Card width on the table, in design pixels (the game's card is 300 wide).</summary>
     private const float CardW = 126, Gap = 12;
 
-    public static Control Create(Kit k, RecapView view, CardVisuals? cards, Live live)
+    public static Control Create(Kit k, RecapView view, CardVisuals? cards, Live live, PadTab? pad = null)
     {
         Control tab = k.Box(RecapPanel.DesignW, RecapPanel.DesignH);
         HBoxContainer banners = k.Row(14);
@@ -134,6 +134,15 @@ internal static class DecksTab
             foreach (DeckEntry entry in deck.Entries)
                 if (slots.TryGetValue(entry.Id, out Action<DeckEntry>? update)) update(entry);
         });
+
+        if (pad != null)
+        {
+            // The banners: stepping to one shows that deck straight away; the first press lands on the one shown.
+            pad.Rows.Add(new PadRow(() => tabs.Count, () => Math.Max(0, tabs.FindIndex(t => t.Player == shownPlayer)),
+                i => { if (i >= 0 && i < tabs.Count && tabs[i].Player != shownPlayer) ShowDeck(tabs[i].Player); },
+                () => { }));
+            pad.Scroll = PadTab.Scrolls(scroll, k.U(PadTab.ScrollStep));
+        }
         return tab;
     }
 

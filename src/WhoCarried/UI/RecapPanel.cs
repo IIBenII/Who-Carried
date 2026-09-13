@@ -1,11 +1,16 @@
 using Godot;
+using MegaCrit.Sts2.Core.ControllerInput;
 using WhoCarried.Core;
 using WhoCarried.Game;
 
 namespace WhoCarried.UI;
 
-/// <summary>What the caller needs to drive an open recap: switch views, show a status message, push live updates.</summary>
-internal sealed record PanelHandle(Control Root, TabContainer Tabs, Label Status, Live Live);
+/// <summary>
+/// What the caller needs to drive an open recap: switch views, show a status message, push live updates, and what the
+/// controller can do (each view's rows, close, save).
+/// </summary>
+internal sealed record PanelHandle(Control Root, TabContainer Tabs, Label Status, Live Live, IReadOnlyList<PadTab> Pads,
+                                   Action Close, Action Save);
 
 /// <summary>
 /// The full-screen recap in the "Dealt" style: the card table, the game's top bar with the result and the run's
@@ -41,18 +46,23 @@ internal static class RecapPanel
         var tabs = new TabContainer { TabsVisible = false, Size = stage.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
         tabs.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
         stage.AddChild(tabs);
-        var handle = new PanelHandle(root, tabs, status, live);
+        PadTab[] pads = Views.Select(_ => new PadTab()).ToArray();
+        PanelHandle? handle = null;
+        void Save() => onSave(handle!);
+        handle = new PanelHandle(root, tabs, status, live, pads, onClose, Save);
 
-        tabs.AddChild(Safe(k, 0, () => ScoreboardTab.Create(k, view, live, deal: true)));
-        tabs.AddChild(Safe(k, 1, () => AwardsTab.Create(k, view, live)));
-        tabs.AddChild(Safe(k, 2, () => SourcesTab.Create(k, view, live)));
-        tabs.AddChild(Safe(k, 3, () => DebuffsTab.Create(k, view, live)));
-        tabs.AddChild(Safe(k, 4, () => TimelineTab.Create(k, view, live)));
-        tabs.AddChild(Safe(k, 5, () => DefenseTab.Create(k, view, live)));
-        tabs.AddChild(Safe(k, 6, () => DecksTab.Create(k, view, cards, live)));
+        tabs.AddChild(Safe(k, 0, pads[0], () => ScoreboardTab.Create(k, view, live, deal: true, pads[0])));
+        tabs.AddChild(Safe(k, 1, pads[1], () => AwardsTab.Create(k, view, live)));
+        tabs.AddChild(Safe(k, 2, pads[2], () => SourcesTab.Create(k, view, live, pads[2])));
+        tabs.AddChild(Safe(k, 3, pads[3], () => DebuffsTab.Create(k, view, live, pads[3])));
+        tabs.AddChild(Safe(k, 4, pads[4], () => TimelineTab.Create(k, view, live, pads[4])));
+        tabs.AddChild(Safe(k, 5, pads[5], () => DefenseTab.Create(k, view, live)));
+        tabs.AddChild(Safe(k, 6, pads[6], () => DecksTab.Create(k, view, cards, live, pads[6])));
 
-        root.AddChild(TopBar(k, view, status, onClose, () => onSave(handle), live, screen.X, stage.Position));
-        stage.AddChild(Nav(k, tabs));
+        var hints = new PadHints();
+        root.AddChild(TopBar(k, view, status, onClose, Save, live, screen.X, stage.Position, hints));
+        stage.AddChild(Nav(k, tabs, hints));
+        hints.Attach(root);
         return handle;
     }
 
@@ -63,7 +73,7 @@ internal static class RecapPanel
     }
 
     /// <summary>One view; if it fails to build, a note in its place so the rest of the recap still opens.</summary>
-    private static Control Safe(Kit k, int index, Func<Control> build)
+    private static Control Safe(Kit k, int index, PadTab pad, Func<Control> build)
     {
         try
         {
@@ -72,6 +82,9 @@ internal static class RecapPanel
         catch (Exception e)
         {
             Tracker.LogError($"recap view {Views[index]}", e);
+            // Rows the view added before failing could point at half-built controls.
+            pad.Rows.Clear();
+            pad.Scroll = null;
             Control failed = k.Box(DesignW, DesignH);
             failed.AddChild(k.At(k.Text("This view couldn't be drawn this time. The details are in the mod's log.", 18, RecapTheme.Muted), 40, 160));
             return Named(failed, index);
@@ -90,7 +103,7 @@ internal static class RecapPanel
     /// game's icons, the party, then status, Save image and Close.
     /// </summary>
     private static Control TopBar(Kit k, RecapView view, Label status, Action onClose, Action onSave, Live live, float screenWidth,
-                                  Vector2 stage)
+                                  Vector2 stage, PadHints hints)
     {
         var bar = new Control { Size = new Vector2(screenWidth, k.U(74) + stage.Y), MouseFilter = Control.MouseFilterEnum.Ignore };
         TextureRect art = k.Stretch(GameArt.Get(GameArt.TopBar), 0, 0);
@@ -125,9 +138,11 @@ internal static class RecapPanel
         row.AddChild(Kit.Center(status));
         Button save = BarButton(k, "Save image", GameArt.Get(GameArt.Share));
         save.Pressed += onSave;
+        hints.OnButton(save, MegaInput.confirm);
         row.AddChild(Kit.Center(save));
         Button close = BarButton(k, "Close", null);
         close.Pressed += onClose;
+        hints.OnButton(close, MegaInput.cancel);
         row.AddChild(Kit.Center(close));
 
         string partyShown = "";
@@ -204,7 +219,7 @@ internal static class RecapPanel
     /// The tabs: plain words; the chosen one is white with a gold brush stroke under it, painted in left to right
     /// each time a tab is chosen. Stays in sync when the view is switched from code (dev preview).
     /// </summary>
-    private static Control Nav(Kit k, TabContainer tabs)
+    private static Control Nav(Kit k, TabContainer tabs, PadHints hints)
     {
         // Where the tabs sit is shared with the scoreboard, whose cards keep clear of them (HandLayout).
         const float top = HandLayout.TabsTop;
@@ -236,6 +251,18 @@ internal static class RecapPanel
             buttons.Add((tab, x, width));
             x += width + 30;
         }
+
+        // LB and RB either side of the tabs, in controller mode only.
+        float glyphY = (HandLayout.TabsBottom - top - 28) / 2;
+        TextureRect previous = k.At(k.Pic(null, 28, 28), -34, glyphY);
+        TextureRect next = k.At(k.Pic(null, 28, 28), x - 24, glyphY);
+        foreach (TextureRect glyph in new[] { previous, next })
+        {
+            glyph.Visible = false;
+            nav.AddChild(glyph);
+        }
+        hints.Glyph(previous, MegaInput.viewDeckAndTabLeft);
+        hints.Glyph(next, MegaInput.viewExhaustPileAndTabRight);
 
         void Mark(int active, bool animate)
         {

@@ -16,7 +16,8 @@ internal static class Climb
     /// <param name="width">Design width of the whole strip.</param>
     /// <param name="height">Design height, heading included.</param>
     /// <param name="barMax">Design height of the tallest stack.</param>
-    public static Control Create(Kit k, RecapView view, float width, float height, float barMax, bool interactive, Live? live)
+    public static Control Create(Kit k, RecapView view, float width, float height, float barMax, bool interactive, Live? live,
+                                 PadTab? pad = null)
     {
         Control box = k.Box(width, height);
         HBoxContainer heading = k.Heading("The climb", GameArt.Get(GameArt.Monster));
@@ -122,6 +123,15 @@ internal static class Climb
             tip.Visible = true;
         }
 
+        // Points at fight i (-1: none), from the mouse or the controller.
+        void Point(int i)
+        {
+            if (i == hovered) return;
+            hovered = i;
+            chart.QueueRedraw();
+            ShowTip();
+        }
+
         void Set(RecapView v, bool animate)
         {
             // Series follow the scoreboard: timeline series are in join order, the stacks put the leader at the bottom.
@@ -192,19 +202,11 @@ internal static class Climb
                 if (input is not InputEventMouseMotion motion || fights == 0 || IgnoreHover) return;
                 float x = motion.Position.X / k.S, y = motion.Position.Y / k.S;
                 int nearest = Enumerable.Range(0, fights).OrderBy(i => Math.Abs(X(i) - x)).First();
-                int now = Math.Abs(X(nearest) - x) <= Math.Max(colW, (width - 40) / Math.Max(1, fights - 1) / 2) && y > baseY - 30 - barMax && y < baseY + 30
-                    ? nearest : -1;
-                if (now == hovered) return;
-                hovered = now;
-                chart.QueueRedraw();
-                ShowTip();
+                Point(Math.Abs(X(nearest) - x) <= Math.Max(colW, (width - 40) / Math.Max(1, fights - 1) / 2) && y > baseY - 30 - barMax && y < baseY + 30
+                    ? nearest : -1);
             };
-            chart.MouseExited += () =>
-            {
-                hovered = -1;
-                tip.Visible = false;
-                chart.QueueRedraw();
-            };
+            chart.MouseExited += () => Point(-1);
+            pad?.Rows.Add(new PadRow(() => fights, () => fights - 1, Point, () => Point(-1)));
         }
         return box;
     }

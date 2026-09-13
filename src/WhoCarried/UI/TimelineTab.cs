@@ -22,14 +22,14 @@ internal static class TimelineTab
 
     private const float ChartW = 1488, ChartH = 548;
 
-    public static Control Create(Kit k, RecapView view, Live live)
+    public static Control Create(Kit k, RecapView view, Live live, PadTab? pad = null)
     {
         Control tab = k.Box(RecapPanel.DesignW, RecapPanel.DesignH);
         tab.AddChild(k.At(Legend(k, view, live), 40, 140));
         Label empty = k.Text("No fights recorded yet. The chart fills in as you go.", 18, RecapTheme.Muted);
         tab.AddChild(k.At(empty, 40, 190));
         PanelContainer frame = k.Tip(12, 10, alpha: 0.55f);
-        frame.AddChild(Chart(k, view, ChartW, ChartH, interactive: true, live, visible => { frame.Visible = visible; empty.Visible = !visible; }));
+        frame.AddChild(Chart(k, view, ChartW, ChartH, interactive: true, live, visible => { frame.Visible = visible; empty.Visible = !visible; }, pad));
         tab.AddChild(k.At(frame, 40, 184));
         return tab;
     }
@@ -74,7 +74,7 @@ internal static class TimelineTab
     /// and the room icons along the bottom. <paramref name="setVisible"/> hears whether there's anything to draw.
     /// </summary>
     public static Control Chart(Kit k, RecapView view, float width, float height, bool interactive, Live? live,
-                                Action<bool>? setVisible = null)
+                                Action<bool>? setVisible = null, PadTab? pad = null)
     {
         const float left = 58, right = 16, top = 30, bottom = 30, icon = 28;
         float plotW = width - left - right, plotH = height - top - bottom, baseline = top + plotH;
@@ -223,7 +223,7 @@ internal static class TimelineTab
         {
             chart.GuiInput += input =>
             {
-                if (input is not InputEventMouseMotion motion || fights == 0) return;
+                if (input is not InputEventMouseMotion motion || fights == 0 || Climb.IgnoreHover) return;
                 float mx = motion.Position.X / k.S, my = motion.Position.Y / k.S;
                 int nearest = Enumerable.Range(0, fights).OrderBy(i => Math.Abs(X(i) - mx)).First();
                 // Snap to the nearest fight anywhere between points (they can sit 100+ px apart on short runs).
@@ -231,7 +231,9 @@ internal static class TimelineTab
                 if (Math.Abs(X(nearest) - mx) > reach || my < top - 10 || my > height) Hide();
                 else Show(nearest);
             };
-            chart.MouseExited += Hide;
+            // The dev preview and replays ignore the real, idle cursor (the controller and PreviewShowFight still work).
+            chart.MouseExited += () => { if (!Climb.IgnoreHover) Hide(); };
+            pad?.Rows.Add(new PadRow(() => fights, () => fights - 1, i => Show(i), Hide));
             PreviewShowFight = i =>
             {
                 if (!GodotObject.IsInstanceValid(chart) || i < 0 || i >= fights) return;

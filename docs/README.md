@@ -16,3 +16,4 @@ They were written with Claude Code, which is why they mention Claude building, d
 | ["Dealt" redesign](design/specs/2026-09-12-run-recap-dealt-design.md) | | The card-table look the mod ships with |
 | [Fair Poison and Doom split](design/specs/2026-09-12-poison-doom-split-design.md) | [plan](design/plans/2026-09-12-poison-doom-split.md) | Sharing Poison ticks and Doom kills by each player's part of the pile, instead of crediting whoever started it |
 | [Top-bar button](design/specs/2026-09-13-top-bar-button-design.md) | [plan](design/plans/2026-09-13-top-bar-button.md) | A podium button next to Map and Deck that opens the recap, drawn to match the game's icons |
+| [Controller support](design/specs/2026-09-13-controller-support-design.md) | [plan](design/plans/2026-09-13-controller-support.md) | Reach the podium from the top bar, and use every tab with a controller |
