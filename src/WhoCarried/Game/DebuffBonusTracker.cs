@@ -38,7 +38,7 @@ internal static class DebuffBonusTracker
         {
             if (power.Type != PowerType.Debuff) continue;
             decimal multiplier;
-            try { multiplier = power.ModifyDamageMultiplicative(target, amount, props, dealer, cardSource, null); }
+            try { multiplier = GameCompat.DamageMultiplicative(power, target, amount, props, dealer, cardSource); }
             catch (Exception) { continue; }
             if (multiplier > 1m) (found ??= new List<Amplifier>()).Add(new Amplifier(power, multiplier));
         }
@@ -62,7 +62,7 @@ internal static class DebuffBonusTracker
         {
             if (power.Type != PowerType.Debuff) continue;
             decimal multiplier;
-            try { multiplier = power.ModifyDamageMultiplicative(target, amount, props, dealer, cardSource, null); }
+            try { multiplier = GameCompat.DamageMultiplicative(power, target, amount, props, dealer, cardSource); }
             catch (Exception) { continue; }
             if (keep(multiplier)) found.Add(new Amplifier(power, multiplier));
         }
@@ -92,8 +92,8 @@ internal static class DebuffBonusTracker
     {
         try
         {
-            return Hook.ModifyDamage(run, target.CombatState, target, dealer, 1m, props, cardSource, null,
-                ModifyDamageHookType.Multiplicative, CardPreviewMode.None, out _);
+            return GameCompat.ModifyDamage(run, target.CombatState, target, dealer, 1m, props, cardSource,
+                ModifyDamageHookType.Multiplicative, CardPreviewMode.None);
         }
         catch (Exception)
         {

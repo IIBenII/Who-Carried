@@ -16,27 +16,27 @@ namespace WhoCarried.UI;
 internal sealed class PadInput
 {
     /// <summary>The game's actions the recap listens for, and what each means here.</summary>
-    private static readonly (StringName Action, PadCommand Command)[] Actions =
-    {
+    /// <summary>Names that differ between game versions come from <see cref="GameCompat"/>; ones a version lacks are left out.</summary>
+    private static readonly (StringName Action, PadCommand Command)[] Actions = Present(
         (MegaInput.viewDeckAndTabLeft, PadCommand.TabPrevious),
         (MegaInput.viewExhaustPileAndTabRight, PadCommand.TabNext),
         (MegaInput.cancel, PadCommand.Close),
         (MegaInput.pauseAndBack, PadCommand.Close),
-        (MegaInput.confirm, PadCommand.Save),
+        (GameCompat.Confirm, PadCommand.Save),
         (MegaInput.up, PadCommand.Up),
         (MegaInput.down, PadCommand.Down),
         (MegaInput.left, PadCommand.Left),
         (MegaInput.right, PadCommand.Right),
-        (MegaInput.altUp, PadCommand.ScrollUp),
-        (MegaInput.altDown, PadCommand.ScrollDown),
-    };
+        (GameCompat.ScrollUp, PadCommand.ScrollUp),
+        (GameCompat.ScrollDown, PadCommand.ScrollDown));
 
     /// <summary>The left stick moves the selection too; the game keeps it out of its rebindable map.</summary>
-    private static readonly (StringName Action, PadCommand Command)[] Stick =
-    {
-        (Controller.lStickUp, PadCommand.Up), (Controller.lStickDown, PadCommand.Down),
-        (Controller.lStickLeft, PadCommand.Left), (Controller.lStickRight, PadCommand.Right),
-    };
+    private static readonly (StringName Action, PadCommand Command)[] Stick = Present(
+        (GameCompat.StickUp, PadCommand.Up), (GameCompat.StickDown, PadCommand.Down),
+        (GameCompat.StickLeft, PadCommand.Left), (GameCompat.StickRight, PadCommand.Right));
+
+    private static (StringName Action, PadCommand Command)[] Present(params (StringName? Action, PadCommand Command)[] all) =>
+        all.Where(a => a.Action != null).Select(a => (a.Action!, a.Command)).ToArray();
 
     private static bool _failed;
 
@@ -47,7 +47,7 @@ internal sealed class PadInput
     public static PadCommand LastCommand { get; private set; }
 
     /// <summary>Whether the game is in controller mode (it switches on the first controller press, back on mouse use).</summary>
-    public static bool ControllerMode => NControllerManager.Instance?.IsUsingDirectionalNavigation ?? false;
+    public static bool ControllerMode => GameCompat.ControllerMode(NControllerManager.Instance);
 
     private readonly PanelHandle _panel;
     private readonly Dictionary<StringName, StringName> _controllerMap;
@@ -189,7 +189,7 @@ internal sealed class PadInput
         // Keys the game binds to those actions (the view-deck key switches tabs, as on the game's own screens).
         if (input is InputEventKey key && !key.Echo && NInputManager.Instance is NInputManager manager)
             foreach ((StringName action, PadCommand command) in Actions)
-                if (manager.GetCurrentHotkey(action) is Key hotkey && hotkey != Key.None && hotkey == key.Keycode) return (command, key.Pressed);
+                if (GameCompat.Hotkey(manager, action) is Key hotkey && hotkey != Key.None && hotkey == key.Keycode) return (command, key.Pressed);
         return null;
     }
 

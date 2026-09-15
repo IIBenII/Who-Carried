@@ -67,15 +67,14 @@ internal static class FactsExtractor
     }
 
     /// <summary>
-    /// The model that started this damage: the top of the context's model stack (Stack&lt;T&gt; enumerates top-first).
-    /// Some effects (things that fire when you're hit) run in a hook context that names its model without pushing it,
-    /// so fall back to that, then to the last model the context touched.
+    /// The model that started this damage: the top of the context's model stack (LastInvolvedModel on every game
+    /// version). Some effects (things that fire when you're hit) run in a hook context that names its model without
+    /// pushing it, so fall back to that.
     /// </summary>
     public static SourceCandidate? StackTop(PlayerChoiceContext? context)
     {
-        AbstractModel? top = context?.ModelStack?.FirstOrDefault()
-                             ?? (context as HookPlayerChoiceContext)?.Source
-                             ?? Safe(() => context?.LastInvolvedModel);
+        AbstractModel? top = Safe(() => context?.LastInvolvedModel)
+                             ?? (context as HookPlayerChoiceContext)?.Source;
         return top == null ? null : Candidate(top);
     }
 

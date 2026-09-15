@@ -139,7 +139,7 @@ internal static class RecapPanel
         row.AddChild(Kit.Center(status));
         Button save = BarButton(k, "Save image", GameArt.Get(GameArt.Share));
         save.Pressed += onSave;
-        hints.OnButton(save, MegaInput.confirm);
+        if (GameCompat.Confirm is StringName confirm) hints.OnButton(save, confirm);
         row.AddChild(Kit.Center(save));
         Button close = BarButton(k, "Close", null);
         close.Pressed += onClose;

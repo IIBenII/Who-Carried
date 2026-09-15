@@ -57,5 +57,7 @@ public static class ModEntry
 
         RecapUi.Install();
         Log.Info($"[WhoCarried] loaded v{Version}: {applied}/{PatchClasses.Length} patches applied");
+        try { GameCompat.LogAtStart(); }
+        catch (Exception e) { Log.Warn($"[WhoCarried] game API check failed: {e.Message}"); }
     }
 }

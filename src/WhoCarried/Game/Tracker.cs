@@ -515,5 +515,5 @@ internal static class Tracker
     }
 
     private static string StackIds(PlayerChoiceContext? context) =>
-        string.Join(",", context?.ModelStack?.Select(m => m.Id.Entry) ?? Enumerable.Empty<string>());
+        string.Join(",", GameCompat.ModelStack(context).Select(m => m.Id.Entry));
 }

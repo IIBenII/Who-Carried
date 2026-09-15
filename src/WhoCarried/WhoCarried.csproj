@@ -11,7 +11,8 @@
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <DebugType>portable</DebugType>
-    <GameData>$(GameDir)\data_sts2_windows_x86_64</GameData>
+    <!-- Pass -p:GameData=<folder of the game's DLLs> to build against another game version's files. -->
+    <GameData Condition="'$(GameData)' == ''">$(GameDir)\data_sts2_windows_x86_64</GameData>
   </PropertyGroup>
   <!-- The game's DLLs are referenced in place, so the build has to know where the game is installed. -->
   <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences" Condition="!Exists('$(GameData)\sts2.dll')">
