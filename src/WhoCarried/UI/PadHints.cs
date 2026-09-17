@@ -5,15 +5,19 @@ using WhoCarried.Game;
 namespace WhoCarried.UI;
 
 /// <summary>
-/// The game's controller button icons on the recap (LB and RB by the tabs, B on Close, Y on Save image), shown only in
-/// controller mode, in the controller's own style, and following rebinding. A missing glyph is left out.
+/// The game's controller button icons on the recap (LB and RB by the tabs, B on Close, Y on Export as image), shown
+/// only in controller mode, in the controller's own style, and following rebinding. A missing glyph is left out.
 /// </summary>
 internal sealed class PadHints
 {
     private readonly List<(TextureRect Rect, StringName Action)> _glyphs = new();
     private readonly List<(Button Button, StringName Action, Texture2D? MouseIcon)> _buttons = new();
+    private readonly List<Control> _mouseOnly = new();
 
     public void Glyph(TextureRect rect, StringName action) => _glyphs.Add((rect, action));
+
+    /// <summary>Hidden in controller mode: the keyboard half of a hint whose other half is a glyph.</summary>
+    public void MouseOnly(Control control) => _mouseOnly.Add(control);
 
     /// <summary>In controller mode the button's icon becomes the glyph; in mouse mode it's its own again.</summary>
     public void OnButton(Button button, StringName action) => _buttons.Add((button, action, button.Icon));
@@ -50,7 +54,16 @@ internal sealed class PadHints
                 rect.Visible = rect.Texture != null;
             }
             foreach ((Button button, StringName action, Texture2D? mouseIcon) in _buttons)
-                if (GodotObject.IsInstanceValid(button)) button.Icon = (pad ? Icon(action) : null) ?? mouseIcon;
+            {
+                if (!GodotObject.IsInstanceValid(button)) continue;
+                button.Icon = (pad ? Icon(action) : null) ?? mouseIcon;
+                // A slab's width is pinned to fit its words, so a glyph arriving later has nowhere to go and
+                // ExpandIcon scales it to nothing. Re-fit the width and leave the height alone — a texture
+                // inflating the height is the defect this button started with.
+                button.Size = new Vector2(button.GetCombinedMinimumSize().X, button.Size.Y);
+            }
+            foreach (Control control in _mouseOnly)
+                if (GodotObject.IsInstanceValid(control)) control.Visible = !pad;
         }
         catch (Exception e)
         {

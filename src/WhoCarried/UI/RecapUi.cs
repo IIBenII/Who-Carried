@@ -17,13 +17,10 @@ internal static class RecapUi
     private const double IdleRefresh = 1.5;
     private const double ResizeDelay = 0.3;
 
-    /// <summary>The key that toggles the recap, as the top-bar tooltip names it.</summary>
-    public const string HotkeyName = "F8";
-
     private static CanvasLayer? _layer;
     private static Control? _panel;
     private static CardVisuals? _cards;
-    private static bool _f8WasDown;
+    private static bool _hotkeyWasDown;
 
     private static Live? _live;
     private static IRunState? _liveRun;
@@ -41,6 +38,7 @@ internal static class RecapUi
 
     public static void Install()
     {
+        HotkeyBinding.Load(Tracker.DataDir);
         if (Engine.GetMainLoop() is SceneTree tree)
         {
             tree.ProcessFrame += OnFrame;
@@ -85,6 +83,7 @@ internal static class RecapUi
         _laidOutFor = RecapPanel.ScreenSize();
         _live = handle.Live;
         EnsureLayer().AddChild(handle.Root);
+        HotkeyRebind.Attach(handle);
         PadInput.Attach(handle);
         return handle;
     }
@@ -200,6 +199,10 @@ internal static class RecapUi
         void Show(string text)
         {
             if (GodotObject.IsInstanceValid(handle.Status)) handle.Status.Text = text;
+            Later.Run(4.0, () =>
+            {
+                if (GodotObject.IsInstanceValid(handle.Status)) handle.Status.Text = "";
+            });
         }
         PngExporter.Render(SummaryCard.Create(view, icons), SummaryCard.Width, (image, error) =>
         {
@@ -230,13 +233,13 @@ internal static class RecapUi
     {
         try
         {
-            bool down = Input.IsKeyPressed(Key.F8);
-            if (down && !_f8WasDown) Toggle();
-            _f8WasDown = down;
+            bool down = HotkeyBinding.IsDown();
+            if (down && !_hotkeyWasDown) Toggle();
+            _hotkeyWasDown = down;
         }
         catch (Exception e)
         {
-            Tracker.LogError("F8", e);
+            Tracker.LogError("hotkey", e);
         }
     }
 

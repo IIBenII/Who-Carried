@@ -15,7 +15,8 @@ internal static class GameArt
 
     public const string Frame = "frame", Banner = "banner", Energy = "energy", TopBar = "top_bar", Floor = "floor",
         Timer = "timer", Ascension = "ascension", Heart = "heart", Deck = "deck", Swords = "swords", Trophy = "trophy",
-        Cards = "cards", Achievements = "achievements", Share = "share", Block = "block", Skull = "skull", Brush = "brush",
+        Cards = "cards", Achievements = "achievements",
+        Block = "block", Skull = "skull", Brush = "brush",
         Dot = "dot", Monster = "monster", Elite = "elite", Boss = "boss", Unknown = "unknown", Perfect = "perfect";
 
     private static readonly Dictionary<string, string> Paths = new()
@@ -33,7 +34,6 @@ internal static class GameArt
         [Trophy] = Stats + "stats_trophy.png",
         [Cards] = Stats + "stats_cards.png",
         [Achievements] = Stats + "stats_achievements.png",
-        [Share] = Stats + "share_stats.png",
         [Block] = "res://images/ui/combat/block.png",
         [Skull] = "res://images/ui/emote/skull.png",
         [Brush] = Map + "map_circle_0.tres",

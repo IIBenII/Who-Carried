@@ -15,3 +15,9 @@ docs/**/*.png
 
 # Design mockups: they need the game's art to render, which can't be published; kept locally only
 docs/mockups/
+
+# Brainstorming visual companion (mockups and its server state)
+.superpowers/
+
+# The mockup server config for the browser pane
+.claude/launch.json

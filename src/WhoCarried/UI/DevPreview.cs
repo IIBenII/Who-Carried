@@ -244,6 +244,14 @@ internal static class DevPreview
                 Tracker.Note($"preview steam: reference {error ?? "saved"}");
                 PanelHandle handle = RecapUi.ShowView(sample.View, sample.Icons, new CardVisuals(sample.CardFor));
                 handle.Save();
+                // Two shots: the message while it is up, and the bar once it has reverted. The message clears after
+                // four seconds, so a single shot at six only ever caught the empty bar — and the message's own
+                // placement, clear of Close, is the thing worth looking at.
+                Later.Run(2, () =>
+                {
+                    ((SceneTree)Engine.GetMainLoop()).Root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, "preview-steam-message.png"));
+                    Tracker.Note($"preview steam: message '{handle.Status.Text}'");
+                });
                 Later.Run(6, () =>
                 {
                     ((SceneTree)Engine.GetMainLoop()).Root.GetTexture().GetImage().SavePng(Path.Combine(dataDir, "preview-steam-status.png"));

@@ -18,7 +18,7 @@ namespace WhoCarried.UI;
 internal static class TopBarButton
 {
     public const string NodeName = "WhoCarriedTopBarButton";
-    public const string Title = RecapTexts.ModName + " (" + RecapUi.HotkeyName + ")";
+    public static string Title => HotkeyBinding.Name is string key ? $"{RecapTexts.ModName} ({key})" : RecapTexts.ModName;
     public const string Description = "View everyone's damage, defense and awards for this run.";
 
     private static Texture2D? _icon;

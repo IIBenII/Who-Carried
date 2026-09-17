@@ -153,6 +153,7 @@ internal sealed class PadInput
 
     private void OnInput(InputEvent input)
     {
+        if (HotkeyRebind.Consumes(input)) return;
         if (input is InputEventMouse or InputEventScreenTouch or InputEventScreenDrag or InputEventGesture) return;
         _panel.Root.AcceptEvent();
         try

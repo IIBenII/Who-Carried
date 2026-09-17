@@ -1,15 +1,19 @@
 using Godot;
 using MegaCrit.Sts2.Core.ControllerInput;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using WhoCarried.Core;
 using WhoCarried.Game;
 
 namespace WhoCarried.UI;
 
+/// <summary>The bar's hotkey readout: the cap with the key on it, the words beside it, and the faint prompt hint.</summary>
+internal sealed record HotkeyLine(Button Cap, Label Text, Label Hint, Action<HewnStone.CapLook> Look);
+
 /// <summary>
 /// What the caller needs to drive an open recap: switch views, show a status message, push live updates, and what the
 /// controller can do (each view's rows, close, save).
 /// </summary>
-internal sealed record PanelHandle(Control Root, TabContainer Tabs, Label Status, Live Live, IReadOnlyList<PadTab> Pads,
+internal sealed record PanelHandle(Control Root, TabContainer Tabs, Label Status, HotkeyLine Hotkey, Live Live, IReadOnlyList<PadTab> Pads,
                                    Action Close, Action Save);
 
 /// <summary>
@@ -19,7 +23,6 @@ internal sealed record PanelHandle(Control Root, TabContainer Tabs, Label Status
 /// </summary>
 internal static class RecapPanel
 {
-    public const string IdleHint = "F8 toggles";
     public const float DesignW = 1600, DesignH = 900;
     private static readonly string[] Views = { "Scoreboard", "Awards", "Sources", "Debuffs", "Timeline", "Defense", "Decks" };
 
@@ -42,14 +45,17 @@ internal static class RecapPanel
         };
         root.AddChild(stage);
 
-        Label status = k.Text(IdleHint, 15, RecapTheme.Faint);
+        Label status = k.Text("", 15, RecapTheme.Faint);
+        Button save = HewnStone.Slab(k, "Export as image", HewnStone.SlabHeight);
         var tabs = new TabContainer { TabsVisible = false, Size = stage.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
         tabs.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
         stage.AddChild(tabs);
         PadTab[] pads = Views.Select(_ => new PadTab()).ToArray();
         PanelHandle? handle = null;
         void Save() => onSave(handle!);
-        handle = new PanelHandle(root, tabs, status, live, pads, onClose, Save);
+        var hints = new PadHints();
+        Control bar = TopBar(k, view, status, onClose, live, screen.X, stage.Position.X, hints, out HotkeyLine hotkeyLine);
+        handle = new PanelHandle(root, tabs, status, hotkeyLine, live, pads, onClose, Save);
 
         tabs.AddChild(Safe(k, 0, pads[0], () => ScoreboardTab.Create(k, view, live, deal: true, pads[0])));
         tabs.AddChild(Safe(k, 1, pads[1], () => AwardsTab.Create(k, view, live)));
@@ -59,9 +65,10 @@ internal static class RecapPanel
         tabs.AddChild(Safe(k, 5, pads[5], () => DefenseTab.Create(k, view, live)));
         tabs.AddChild(Safe(k, 6, pads[6], () => DecksTab.Create(k, view, cards, live, pads[6])));
 
-        var hints = new PadHints();
-        root.AddChild(TopBar(k, view, status, onClose, Save, live, screen.X, stage.Position.X, hints));
-        stage.AddChild(Nav(k, tabs, hints));
+        save.Pressed += Save;
+        if (GameCompat.Confirm is StringName confirm) hints.OnButton(save, confirm);
+        root.AddChild(bar);
+        stage.AddChild(Nav(k, tabs, hints, save));
         hints.Attach(root);
         return handle;
     }
@@ -100,11 +107,12 @@ internal static class RecapPanel
 
     /// <summary>
     /// The game's top bar across the screen: "Who Carried? · Victory", floor, time, ascension and team damage with the
-    /// game's icons, the party, then status, Save image and Close. Always at the top of the screen at the game's bar
-    /// height; on screens taller than 16:9 the views sit centred in the space below it.
+    /// game's icons, the party, then status. Close stays in the bar while the hotkey and Save image controls sit beside
+    /// the tabs, safely below the opening icon. The bar stays at the top of the screen at the game's bar height; on screens taller than 16:9
+    /// the views sit centred in the space below it.
     /// </summary>
-    private static Control TopBar(Kit k, RecapView view, Label status, Action onClose, Action onSave, Live live, float screenWidth,
-                                  float stageLeft, PadHints hints)
+    private static Control TopBar(Kit k, RecapView view, Label status, Action onClose, Live live, float screenWidth,
+                                  float stageLeft, PadHints hints, out HotkeyLine hotkey)
     {
         var bar = new Control { Size = new Vector2(screenWidth, k.U(74)), MouseFilter = Control.MouseFilterEnum.Ignore };
         TextureRect art = k.Stretch(GameArt.Get(GameArt.TopBar), 0, 0);
@@ -121,6 +129,9 @@ internal static class RecapPanel
         row.Position = new Vector2(stageLeft + k.U(30), 0);
         row.Size = new Vector2(screenWidth - 2 * (stageLeft + k.U(30)), k.U(68));
         bar.AddChild(row);
+        // Sized properly once Close is placed: see the end of this method. The row's last child is the status label,
+        // which right-aligns to the row's edge — left at full width it runs under Close, and every export message
+        // loses its tail.
 
         HBoxContainer title = k.Row(0);
         title.AddChild(Kit.Center(k.Strong(RecapTexts.ModName + " · ", 30)));
@@ -135,16 +146,46 @@ internal static class RecapPanel
         foreach (Control stat in new[] { floor, time, ascension, team }) row.AddChild(Kit.Center(stat));
         HBoxContainer party = k.Row(-8);
         row.AddChild(Kit.Center(party));
+
+        // One more of the bar's readouts: it already says floor, time, ascension and damage, so it can say which key
+        // opens the thing. The cap is the control — clicking it starts HotkeyRebind listening.
+        HBoxContainer keys = k.Row(10);
+        Button cap = HewnStone.Cap(k, HotkeyBinding.Name ?? "—");
+        Label keyText = k.Text(HotkeyBinding.Name == null ? "no key opens the recap" : "toggles the recap", 17, RecapTheme.Faint);
+        Label keyHint = k.Caps("", 13, RecapTheme.Faint, 2);
+        keys.AddChild(Kit.Center(cap));
+        keys.AddChild(Kit.Center(keyText));
+        keys.AddChild(Kit.Center(keyHint));
+        row.AddChild(Kit.Center(keys));
+        hotkey = new HotkeyLine(cap, keyText, keyHint, look => HewnStone.Dress(cap, k, look));
+        if (HotkeyBinding.Name == null) hotkey.Look(HewnStone.CapLook.Unbound);
+
         row.AddChild(Kit.Fill());
         row.AddChild(Kit.Center(status));
-        Button save = BarButton(k, "Save image", GameArt.Get(GameArt.Share));
-        save.Pressed += onSave;
-        if (GameCompat.Confirm is StringName confirm) hints.OnButton(save, confirm);
-        row.AddChild(Kit.Center(save));
-        Button close = BarButton(k, "Close", null);
+
+        // Close is a word, not a stone: it is the one control nobody hunts for, and the key beside it already does the
+        // job. The cap and the glyph are the same hint for two devices — PadHints shows exactly one of them.
+        HBoxContainer closing = k.Row(9);
+        TextureRect closeGlyph = k.Pic(null, 26, 26);
+        closeGlyph.Visible = false;
+        hints.Glyph(closeGlyph, MegaInput.cancel);
+        closing.AddChild(Kit.Center(closeGlyph));
+        if (CloseKeyName() is string closeKey)
+        {
+            Button closeCap = HewnStone.Cap(k, closeKey);
+            closeCap.MouseFilter = Control.MouseFilterEnum.Ignore;
+            hints.MouseOnly(closeCap);
+            closing.AddChild(Kit.Center(closeCap));
+        }
+        Button close = HewnStone.Word(k, "Close");
         close.Pressed += onClose;
-        hints.OnButton(close, MegaInput.cancel);
-        row.AddChild(Kit.Center(close));
+        closing.AddChild(Kit.Center(close));
+        // Close is placed by hand rather than by the row, so it has to centre itself on the row's band the way
+        // Kit.Center does for everything in it — otherwise the key line and Close sit at different heights.
+        Vector2 closingSize = closing.GetCombinedMinimumSize();
+        closing.Position = new Vector2(stageLeft + k.U(1566) - closingSize.X, (k.U(68) - closingSize.Y) / 2);
+        bar.AddChild(closing);
+        row.Size = new Vector2(Math.Max(k.U(200), closing.Position.X - k.U(20) - row.Position.X), k.U(68));
 
         string partyShown = "";
         void Apply(RecapView v)
@@ -176,6 +217,24 @@ internal static class RecapPanel
         return bar;
     }
 
+    /// <summary>
+    /// The key the game has bound to cancel — the one that already closes the recap through PadInput. Null when the
+    /// binding can't be read, in which case Close says nothing about keys, which is how it behaved before.
+    /// </summary>
+    private static string? CloseKeyName()
+    {
+        try
+        {
+            if (NInputManager.Instance is NInputManager manager && GameCompat.Hotkey(manager, MegaInput.cancel) is Key key && key != Key.None)
+                return key.ToString();
+        }
+        catch (Exception e)
+        {
+            Tracker.LogError("reading the key that closes the recap", e);
+        }
+        return null;
+    }
+
     private static (Control, Label) Stat(Kit k, Texture2D? icon)
     {
         HBoxContainer stat = k.Row(7);
@@ -195,38 +254,26 @@ internal static class RecapPanel
         return coin;
     }
 
-    private static Button BarButton(Kit k, string text, Texture2D? icon)
-    {
-        var button = new Button { Text = text, Icon = icon, FocusMode = Control.FocusModeEnum.None, ExpandIcon = false };
-        if (RecapTheme.Bold is Font font) button.AddThemeFontOverride("font", font);
-        button.AddThemeFontSizeOverride("font_size", k.F(18));
-        button.AddThemeConstantOverride("icon_max_width", k.F(20));
-        button.AddThemeConstantOverride("h_separation", k.F(7));
-        button.AddThemeConstantOverride("outline_size", k.F(3));
-        button.AddThemeColorOverride("font_outline_color", RecapTheme.Ink);
-        foreach (string state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color" })
-            button.AddThemeColorOverride(state, RecapTheme.Text);
-        StyleBoxFlat Box(float alpha, float edge) =>
-            RecapTheme.Box(new Color(0, 0, 0, alpha), k.U(6), new Color(1, 1, 1, edge), k.U(1), k.U(14), k.U(6));
-        button.AddThemeStyleboxOverride("normal", Box(0.35f, 0.14f));
-        button.AddThemeStyleboxOverride("hover", Box(0.55f, 0.35f));
-        button.AddThemeStyleboxOverride("pressed", Box(0.7f, 0.5f));
-        button.AddThemeStyleboxOverride("hover_pressed", Box(0.7f, 0.5f));
-        button.AddThemeStyleboxOverride("focus", new StyleBoxEmpty());
-        return button;
-    }
-
     /// <summary>
     /// The tabs: plain words; the chosen one is white with a gold brush stroke under it, painted in left to right
     /// each time a tab is chosen. Stays in sync when the view is switched from code (dev preview).
     /// </summary>
-    private static Control Nav(Kit k, TabContainer tabs, PadHints hints)
+    private static Control Nav(Kit k, TabContainer tabs, PadHints hints, Button save)
     {
         // Where the tabs sit is shared with the scoreboard, whose cards keep clear of them (HandLayout).
         const float top = HandLayout.TabsTop;
         Control nav = k.At(k.Box(1520, 50), 40, top);
         nav.AddChild(k.At(new ColorRect { Color = RecapTheme.Line, MouseFilter = Control.MouseFilterEnum.Ignore }, 0,
             HandLayout.TabLine - top, 1520, 1));
+        // The tabs run to Decks at x 679 and the stroke under the chosen tab finishes on HandLayout.TabLine. The export
+        // starts two tab gutters clear of Decks and rests ON that line rather than across it: the shadow's underside is
+        // what touches it, so the rule runs beneath the whole object instead of through its bottom edge. Nav's own
+        // origin is (40, TabsTop), which is what these numbers are relative to.
+        save.Position = k.V(699, HandLayout.TabLine - HewnStone.SlabHeight - HewnStone.ShadowDrop - top);
+        Panel saveShadow = HewnStone.Shadow(k, save);
+        nav.AddChild(saveShadow);
+        nav.AddChild(save);
+        HewnStone.Lift(save, k);
         // The stroke sits in a clipping box that grows from nothing, so it looks painted on.
         var stroke = new Control { ClipContents = true, MouseFilter = Control.MouseFilterEnum.Ignore };
         TextureRect brush = k.Stretch(GameArt.Get(GameArt.Brush), 0, 16, RecapTheme.Gold);

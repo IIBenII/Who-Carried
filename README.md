@@ -2,7 +2,7 @@
 
 A Slay the Spire 2 mod that settles the argument at the end of every co-op run: who carried, and who was dead weight.
 
-When a run ends, the recap opens over the victory or defeat screen and deals every player out as a card, ranked by damage, with awards for the things damage doesn't show. It can be opened mid-run too, with **F8** or the podium button on the game's top bar.
+When a run ends, the recap opens over the victory or defeat screen and deals every player out as a card, ranked by damage, with awards for the things damage doesn't show. It can be opened mid-run too, with **F8** (rebindable) or the podium button on the game's top bar.
 
 **[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3802205096)** · pictures are on the Workshop page.
 
@@ -25,6 +25,7 @@ When a run ends, the recap opens over the victory or defeat screen and deals eve
 - **Fair credit.** Shared Poison and Doom are split by each player's part of the pile, tick by tick. Vulnerable, Weak and Strength-down are credited to whoever applied them, and exact ties take turns.
 - **Game versions.** One build runs on both the public branch (v0.107) and the beta (v0.111); `Game/GameCompat.cs` looks up the few game APIs that differ by name.
 - **Controller** support: bumpers switch tabs, the d-pad moves around.
+- **Hotkey:** open the recap and click the key on the top bar — the one reading **F8 toggles the recap** — then press the key you want. Esc cancels; Delete or Backspace clears it, leaving the podium button. The setting is saved in `settings.json` in the mod's data folder.
 - **Files** live in the game's save folder under `WhoCarried/` (`%APPDATA%\SlayTheSpire2\WhoCarried` on Windows).
 
 ### Steam Deck and Linux
@@ -61,6 +62,10 @@ Two files in the mod's data folder switch on developer tools at start-up:
 
 - `preview.flag` opens the recap with sample data about 10 s after the game loads, screenshots every view into the data folder, then closes it. The file can hold a party size (`1`–`4`).
 - `replay.flag` rebuilds the recap of the last recorded run from `events.log` with the current rules.
+
+## What's changed
+
+[CHANGELOG.md](CHANGELOG.md) — what each release added, changed and fixed.
 
 ## Credits
 
