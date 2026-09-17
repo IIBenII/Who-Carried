@@ -66,6 +66,7 @@ Two files in the mod's data folder switch on developer tools at start-up:
 ## What's changed
 
 [CHANGELOG.md](CHANGELOG.md) — what each release added, changed and fixed.
+[docs/releasing.md](docs/releasing.md) — how a build reaches players, and what to check first.
 
 ## Credits
 
