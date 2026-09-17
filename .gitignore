@@ -21,3 +21,6 @@ docs/mockups/
 
 # The mockup server config for the browser pane
 .claude/launch.json
+
+# The Workshop uploader writes its log here
+mod-uploader.log
