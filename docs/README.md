@@ -2,6 +2,8 @@
 
 Recent investigations: [Hextech Burn's missing attribution](investigations/2026-09-18-hextech-burn-attribution.md) and the [generic source-attribution spike](investigations/2026-09-18-generic-attribution-spike.md).
 
+Comment verification: [Osty tanking and Strength-reduction prevention](investigations/2026-09-18-osty-strength-prevention.md).
+
 The specs and plans the mod was built from, in the order they were written (September 2026). They're a record of how it got here, so they aren't updated as the code changes.
 
 **The mod was called "Run Recap" when these were written.** It was renamed **Who Carried?** before release, because another Workshop mod already uses that name. Where the docs say `RunRecap`, the code now says `WhoCarried`: `src\RunRecap\` is `src\WhoCarried\`, `<game>\mods\RunRecap\` is `<game>\mods\WhoCarried\`, and so on. `<game>` is your Slay the Spire 2 folder.
