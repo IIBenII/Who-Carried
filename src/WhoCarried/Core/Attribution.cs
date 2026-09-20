@@ -1,3 +1,5 @@
+using WhoCarried.Localization;
+
 namespace WhoCarried.Core;
 
 public readonly record struct AttributionResult(ulong? PlayerId, SourceRef Source);
@@ -29,7 +31,7 @@ public static class Attribution
     public const char ViaSeparator = '>';
 
     public static SourceRef PetVia(SourceRef pet, SourceRef trigger) =>
-        new(SourceKind.Pet, $"{pet.Id}{ViaSeparator}{trigger.Id}", $"{pet.Label} via {trigger.Label}");
+        new(SourceKind.Pet, $"{pet.Id}{ViaSeparator}{trigger.Id}", Loc.Text("WHO_CARRIED.sources.pet_via", pet.Label, trigger.Label));
 
     /// <summary>
     /// Who put a debuff on an enemy. A player applier wins (pets already resolve to their owner). An applier that

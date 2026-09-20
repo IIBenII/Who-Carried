@@ -7,6 +7,7 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.HoverTips;
 using WhoCarried.Core;
 using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -18,8 +19,8 @@ namespace WhoCarried.UI;
 internal static class TopBarButton
 {
     public const string NodeName = "WhoCarriedTopBarButton";
-    public static string Title => HotkeyBinding.Name is string key ? $"{RecapTexts.ModName} ({key})" : RecapTexts.ModName;
-    public const string Description = "View everyone's damage, defense and awards for this run.";
+    public static string Title => HotkeyBinding.Name is string key ? Loc.Text("WHO_CARRIED.tooltip.hotkey", RecapTexts.ModName, key) : RecapTexts.ModName;
+    public static string Description => Loc.Text("WHO_CARRIED.tooltip.recap");
 
     private static Texture2D? _icon;
     private static bool _iconFailed, _tipFailed;

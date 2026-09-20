@@ -2,6 +2,7 @@ using Godot;
 using MegaCrit.Sts2.Core.Models;
 using WhoCarried.Core;
 using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -62,7 +63,7 @@ internal static class Replay
 
             bool victory = history?.Win ?? log.Victory ?? false;
             int floors = history?.Floors ?? log.Stats.Fights.LastOrDefault()?.Floor ?? 0;
-            string header = victory ? $"Victory on floor {floors}" : $"Defeat on floor {floors}";
+            string header = victory ? Loc.Text("WHO_CARRIED.result.victory_floor", floors) : Loc.Text("WHO_CARRIED.result.defeat_floor", floors);
             string seed = history?.Seed is { Length: > 0 } s ? s : log.RunKey.Split(':')[0];
             var facts = new RunFacts(floors, history?.Ascension ?? 0, history?.RunTime ?? 0, seed);
             RecapView view = RecapBuilder.Build(log.Stats, players, defense, header, victory, decks, GameReader.BadgeText, facts);

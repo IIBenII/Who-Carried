@@ -10,4 +10,8 @@
   <ItemGroup>
     <Compile Include="..\..\src\WhoCarried\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../src/WhoCarried/Localization/**/*.json" LogicalName="WhoCarried.Localization.%(Filename).json" />
+    <Compile Include="../../src/WhoCarried/Localization/*.cs" Link="Localization/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

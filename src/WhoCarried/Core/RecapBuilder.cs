@@ -1,11 +1,12 @@
 using System.Globalization;
+using WhoCarried.Localization;
 
 namespace WhoCarried.Core;
 
 /// <param name="Value">Damage dealt (HP removed).</param>
 /// <param name="Bonus">Extra damage teammates dealt thanks to this player's debuffs; 0 = none.</param>
 /// <param name="BlockRemoved">Enemy block knocked off, shown under the damage; not part of <paramref name="Value"/>.</param>
-/// <param name="Award">The player's headline award title (scoreboard rows only); "" for none.</param>
+/// <param name="Award">The player's headline award localization key (scoreboard rows only); "" for none.</param>
 /// <param name="Badges">The game's end-of-run badges for this player (scoreboard rows only), best first.</param>
 /// <param name="ArtKey">A damage source's picture (see <see cref="SourceArt"/>); null for none.</param>
 public sealed record BarRow(string Label, string SubLabel, int Value, double Fraction, double? Share, string ColorHex,
@@ -39,7 +40,7 @@ public sealed record DefenseRow(string Label, string ColorHex, int Taken, int Bl
                                 int Prevented = 0, string Character = "", int LowestHp = 0, int LowestHpMax = 0);
 
 /// <summary>The run at a glance, for the top bar: floor reached, ascension, play time and seed.</summary>
-public sealed record RunFacts(int Floor, int Ascension, long Seconds, string Seed);
+public sealed record RunFacts(int Floor, int Ascension, long Seconds, string Seed, int Act = 0);
 
 /// <param name="LowestHp">The lowest HP the player ended a floor on (0 = unknown), with their max HP then.</param>
 public sealed record DefenseTotals(int Taken, int Healed, int LowestHp = 0, int LowestHpMax = 0);
@@ -149,8 +150,8 @@ public static class RecapBuilder
         return new RecapView(header, overview, sources, timeline, fightActs, actStarts, fightPoints, defenseRows,
             Highlights(stats, players, team), victory, DeckBuilder.Build(stats, byDamage, decks),
             DebuffBuilder.Build(stats, byDamage),
-            Note(stats, players, t => t.DebuffBonus, "Bonus damage is the extra damage teammates dealt thanks to your {0}."),
-            Note(stats, players, t => t.DebuffPrevented, "\"Kept off the team\" is what your {0} prevented."),
+            Note(stats, players, t => t.DebuffBonus, "WHO_CARRIED.summary.bonus_note"),
+            Note(stats, players, t => t.DebuffPrevented, "WHO_CARRIED.summary.prevented_note"),
             awards,
             // The game hands out badges when the run ends; until then there's nothing to show.
             stats.Finished
@@ -175,7 +176,7 @@ public static class RecapBuilder
     {
         0 => "",
         1 => words[0],
-        _ => string.Join(", ", words.Take(words.Count - 1)) + " and " + words[^1],
+        _ => Loc.Text("WHO_CARRIED.list.and", string.Join(Loc.Text("WHO_CARRIED.list.separator"), words.Take(words.Count - 1)), words[^1]),
     };
 
     /// <summary>
@@ -192,7 +193,7 @@ public static class RecapBuilder
             .ThenBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => g.Key)
             .ToList();
-        return debuffs.Count == 0 ? "" : string.Format(CultureInfo.InvariantCulture, format, JoinAnd(debuffs));
+        return debuffs.Count == 0 ? "" : Loc.Text(format, JoinAnd(debuffs));
     }
 
     private static List<Highlight> Highlights(RunStats stats, IReadOnlyList<PlayerInfo> players, int team)
@@ -200,7 +201,7 @@ public static class RecapBuilder
         int fights = stats.Fights.Count;
         var list = new List<Highlight>
         {
-            new("Team damage", Num(team), fights == 1 ? "1 fight" : $"{fights} fights"),
+            new(Loc.Text("WHO_CARRIED.stat.team_damage"), Num(team), Loc.Text(fights == 1 ? "WHO_CARRIED.summary.fight_one" : "WHO_CARRIED.summary.fights", fights)),
         };
 
         (PlayerInfo Player, SourceTotal Source) top = players
@@ -211,15 +212,15 @@ public static class RecapBuilder
             .ThenBy(x => x.Source.Label, StringComparer.Ordinal)
             .FirstOrDefault();
         list.Add(top.Source == null
-            ? new Highlight("Top source", NoValue, "")
-            : new Highlight("Top source", top.Source.Label, $"{Num(top.Source.Amount)} · {top.Player.Name}"));
+            ? new Highlight(Loc.Text("WHO_CARRIED.summary.top_source"), NoValue, "")
+            : new Highlight(Loc.Text("WHO_CARRIED.summary.top_source"), top.Source.Label, $"{Num(top.Source.Amount)} · {top.Player.Name}"));
 
         HashSet<string> realKeys = players.Select(p => RunStats.KeyFor(p.NetId)).ToHashSet();
         int FightTotal(FightBucket f) => f.DamageByPlayer.Where(kv => realKeys.Contains(kv.Key)).Sum(kv => kv.Value);
         FightBucket? biggest = stats.Fights.OrderByDescending(FightTotal).FirstOrDefault();
         list.Add(biggest == null || FightTotal(biggest) == 0
-            ? new Highlight("Biggest fight", NoValue, "")
-            : new Highlight("Biggest fight", Num(FightTotal(biggest)), $"{biggest.Label} · Act {biggest.Act}"));
+            ? new Highlight(Loc.Text("WHO_CARRIED.summary.biggest_fight"), NoValue, "")
+            : new Highlight(Loc.Text("WHO_CARRIED.summary.biggest_fight"), Num(FightTotal(biggest)), Loc.Text("WHO_CARRIED.summary.fight_act", biggest.Label, biggest.Act)));
         return list;
     }
 

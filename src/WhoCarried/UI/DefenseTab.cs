@@ -1,5 +1,6 @@
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -22,7 +23,7 @@ internal static class DefenseTab
 
         Label note = k.Text("", 15, RecapTheme.Muted);
         tab.AddChild(k.At(note, 40, stripY + 84));
-        void Note(RecapView v) => note.Text = "The shield is damage your own block soaked up." + (v.PreventedNote.Length > 0 ? " " + v.PreventedNote : "");
+        void Note(RecapView v) => note.Text = Loc.Text("WHO_CARRIED.defense.hint") + (v.PreventedNote.Length > 0 ? " " + v.PreventedNote : "");
         Note(view);
         live.On(Note);
         return tab;
@@ -35,7 +36,7 @@ internal static class DefenseTab
         grid.AddThemeConstantOverride("h_separation", k.F(compact ? 18 : 30));
         grid.AddThemeConstantOverride("v_separation", k.F(compact ? 14 : 24));
         float plateW = (width - (compact ? 18 : 30) * (columns - 1)) / columns;
-        Label empty = k.Text("No defense data yet.", 16, RecapTheme.Muted);
+        Label empty = k.Text(Loc.Text("WHO_CARRIED.empty.defense"), 16, RecapTheme.Muted);
         grid.AddChild(empty);
 
         static int Scale(RecapView v) => Math.Max(1, v.Defense.Select(r => r.Taken + r.Healed).DefaultIfEmpty(0).Max());
@@ -89,10 +90,10 @@ internal static class DefenseTab
         var bar = new HpBar(k, barW, 30);
         barBox.AddChild(bar.Control);
         HBoxContainer under = k.Row(0);
-        (Control takenLine, LiveNumber taken) = Amount(k, RecapTheme.Taken, " taken");
+        (Control takenLine, LiveNumber taken) = Amount(k, RecapTheme.Taken, "WHO_CARRIED.defense.taken_amount");
         under.AddChild(takenLine);
         under.AddChild(Kit.Fill());
-        (Control healedLine, LiveNumber healed) = Amount(k, RecapTheme.Healed, " healed");
+        (Control healedLine, LiveNumber healed) = Amount(k, RecapTheme.Healed, "WHO_CARRIED.defense.healed_amount");
         under.AddChild(healedLine);
         under.CustomMinimumSize = k.V(barW, 0);
         barBox.AddChild(under);
@@ -100,9 +101,9 @@ internal static class DefenseTab
         right.AddChild(Pad(k, middle, 16));
 
         HBoxContainer facts = k.Row(22);
-        (Control blockedLine, Label blocked) = Fact(k, GameArt.Get(GameArt.Block), RecapTheme.Blocked, " blocked");
+        (Control blockedLine, Label blocked) = Fact(k, GameArt.Get(GameArt.Block), RecapTheme.Blocked);
         facts.AddChild(blockedLine);
-        (Control keptLine, Label kept) = Fact(k, k.Icon(DebuffBuilder.IconPrefix + "WEAK_POWER"), RecapTheme.Teal, " kept off the team");
+        (Control keptLine, Label kept) = Fact(k, k.Icon(DebuffBuilder.IconPrefix + "WEAK_POWER"), RecapTheme.Teal);
         facts.AddChild(keptLine);
         right.AddChild(Pad(k, facts, 14));
 
@@ -113,8 +114,8 @@ internal static class DefenseTab
             bar.Set((double)r.Taken / it.Max, (double)r.Healed / it.Max);
             taken.Set(r.Taken);
             healed.Set(r.Healed);
-            blocked.Text = Kit.Num(r.Blocked);
-            kept.Text = Kit.Num(r.Prevented);
+            blocked.Text = Loc.Text("WHO_CARRIED.defense.blocked_amount", Kit.Num(r.Blocked));
+            kept.Text = Loc.Text("WHO_CARRIED.defense.prevented_amount", Kit.Num(r.Prevented));
             keptLine.Visible = it.Prevented;
         }
         Apply(item);
@@ -145,13 +146,13 @@ internal static class DefenseTab
         barBox.AddChild(bar.Control);
         HBoxContainer under = k.Row(0);
         under.CustomMinimumSize = k.V(barW, 0);
-        (Control takenLine, LiveNumber taken) = Amount(k, RecapTheme.Taken, " taken", 13, 11);
+        (Control takenLine, LiveNumber taken) = Amount(k, RecapTheme.Taken, "WHO_CARRIED.defense.taken_amount", 13);
         under.AddChild(takenLine);
         under.AddChild(Kit.Fill());
-        (Control keptLine, LiveNumber kept) = Amount(k, RecapTheme.Teal, " kept off", 13, 11);
+        (Control keptLine, LiveNumber kept) = Amount(k, RecapTheme.Teal, "WHO_CARRIED.defense.kept_amount", 13);
         under.AddChild(keptLine);
         under.AddChild(Kit.Fill());
-        (Control healedLine, LiveNumber healed) = Amount(k, RecapTheme.Healed, " healed", 13, 11);
+        (Control healedLine, LiveNumber healed) = Amount(k, RecapTheme.Healed, "WHO_CARRIED.defense.healed_amount", 13);
         under.AddChild(healedLine);
         barBox.AddChild(under);
         middle.AddChild(Kit.Center(barBox));
@@ -214,26 +215,22 @@ internal static class DefenseTab
         return (shield, number);
     }
 
-    /// <summary>"289 taken": the number big and coloured, the word after it.</summary>
-    private static (Control, LiveNumber) Amount(Kit k, Color tone, string word, float size = 20, float wordSize = 15)
+    /// <summary>An animated amount formatted as a complete localized phrase.</summary>
+    private static (Control, LiveNumber) Amount(Kit k, Color tone, string key, float size = 20)
     {
         HBoxContainer line = k.Row(0);
-        var number = new LiveNumber(k.Text("", size, tone, true, Ink.Soft), 0);
+        var number = new LiveNumber(k.Text("", size, tone, true, Ink.Soft), 0, format: v => Loc.Text(key, Kit.Num(v)));
         line.AddChild(Kit.Center(number.Control));
-        Label after = k.Text(word, wordSize, RecapTheme.Text);
-        after.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
-        line.AddChild(after);
         return (line, number);
     }
 
     /// <summary>"🛡 573 blocked": an icon, the number in its colour, the words.</summary>
-    private static (Control, Label) Fact(Kit k, Texture2D? icon, Color tone, string words)
+    private static (Control, Label) Fact(Kit k, Texture2D? icon, Color tone)
     {
         HBoxContainer line = k.Row(6);
         if (icon != null) line.AddChild(Kit.Center(k.Pic(icon, 22, 22)));
         Label number = k.Text("", 15, tone, true);
         line.AddChild(Kit.Center(number));
-        line.AddChild(Kit.Center(k.Text(words.TrimStart(), 15, new Color("dfe4ea"))));
         return (line, number);
     }
 
@@ -252,23 +249,22 @@ internal static class DefenseTab
         tip.CustomMinimumSize = k.V(width, 0);
         HBoxContainer row = k.Row(40 * scale);
         tip.AddChild(row);
-        row.AddChild(Kit.Center(k.Text(view.Defense.Count == 1 ? "The run" : "The team", 20 * scale, RecapTheme.Gold, true, Ink.Soft)));
+        row.AddChild(Kit.Center(k.Text(view.Defense.Count == 1 ? Loc.Text("WHO_CARRIED.defense.run") : Loc.Text("WHO_CARRIED.defense.team"), 20 * scale, RecapTheme.Gold, true, Ink.Soft)));
         Texture2D? heal = k.Icon(DebuffBuilder.IconPrefix + "REGEN_POWER") ?? GameArt.Get(GameArt.Heart);
         var items = new (Texture2D? Icon, Color Tone, string Words, Func<DefenseRow, int> Value)[]
         {
-            (GameArt.Get(GameArt.Heart), RecapTheme.Taken, "damage taken", r => r.Taken),
-            (GameArt.Get(GameArt.Block), RecapTheme.Blocked, "blocked", r => r.Blocked),
-            (heal, RecapTheme.Healed, "healed", r => r.Healed),
-            (k.Icon(DebuffBuilder.IconPrefix + "WEAK_POWER"), RecapTheme.Teal, "kept off by debuffs", r => r.Prevented),
+            (GameArt.Get(GameArt.Heart), RecapTheme.Taken, "WHO_CARRIED.defense.taken", r => r.Taken),
+            (GameArt.Get(GameArt.Block), RecapTheme.Blocked, "WHO_CARRIED.defense.blocked", r => r.Blocked),
+            (heal, RecapTheme.Healed, "WHO_CARRIED.defense.healed", r => r.Healed),
+            (k.Icon(DebuffBuilder.IconPrefix + "WEAK_POWER"), RecapTheme.Teal, "WHO_CARRIED.defense.prevented", r => r.Prevented),
         };
         var numbers = new List<(Control Line, LiveNumber Number, Func<DefenseRow, int> Value)>();
         foreach ((Texture2D? icon, Color tone, string words, Func<DefenseRow, int> value) in items)
         {
             HBoxContainer line = k.Row(9 * scale);
             if (icon != null) line.AddChild(Kit.Center(k.Pic(icon, 30 * scale, 30 * scale)));
-            var number = new LiveNumber(k.Text("", 26 * scale, tone, true, Ink.Soft), view.Defense.Sum(value));
+            var number = new LiveNumber(k.Text("", 18 * scale, tone, true, Ink.Soft), view.Defense.Sum(value), format: n => Loc.Text(words, Kit.Num(n)));
             line.AddChild(Kit.Center(number.Control));
-            line.AddChild(Kit.Center(k.Text(words, 16 * scale, RecapTheme.Muted)));
             row.AddChild(Kit.Center(line));
             numbers.Add((line, number, value));
         }

@@ -5,7 +5,7 @@ public enum SourceKind { Card, Power, Relic, Potion, Orb, Pet, Monster, Other, U
 /// <summary>What caused a piece of damage. <see cref="Key"/> merges repeat hits from the same source.</summary>
 public sealed record SourceRef(SourceKind Kind, string Id, string Label)
 {
-    public static readonly SourceRef Unknown = new(SourceKind.Unknown, "UNKNOWN", "Unknown");
+    public static SourceRef Unknown => new(SourceKind.Unknown, "UNKNOWN", WhoCarried.Localization.Loc.Text("WHO_CARRIED.sources.unknown"));
 
     public string Key => $"{Kind}:{Id}";
 }

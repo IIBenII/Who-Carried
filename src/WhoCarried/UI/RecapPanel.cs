@@ -3,6 +3,7 @@ using MegaCrit.Sts2.Core.ControllerInput;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using WhoCarried.Core;
 using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -24,7 +25,7 @@ internal sealed record PanelHandle(Control Root, TabContainer Tabs, Label Status
 internal static class RecapPanel
 {
     public const float DesignW = 1600, DesignH = 900;
-    private static readonly string[] Views = { "Scoreboard", "Awards", "Sources", "Debuffs", "Timeline", "Defense", "Decks" };
+    private static readonly string[] Views = { "WHO_CARRIED.tab.scoreboard", "WHO_CARRIED.tab.awards", "WHO_CARRIED.tab.sources", "WHO_CARRIED.tab.debuffs", "WHO_CARRIED.tab.timeline", "WHO_CARRIED.tab.defense", "WHO_CARRIED.tab.decks" };
 
     public static PanelHandle Create(RecapView view, Func<string?, Texture2D?> icons, CardVisuals? cards,
                                      Action onClose, Action<PanelHandle> onSave)
@@ -46,7 +47,7 @@ internal static class RecapPanel
         root.AddChild(stage);
 
         Label status = k.Text("", 15, RecapTheme.Faint);
-        Button save = HewnStone.Slab(k, "Export as image", HewnStone.SlabHeight);
+        Button save = HewnStone.Slab(k, Loc.Text("WHO_CARRIED.action.save_image"), HewnStone.SlabHeight);
         var tabs = new TabContainer { TabsVisible = false, Size = stage.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
         tabs.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
         stage.AddChild(tabs);
@@ -75,7 +76,7 @@ internal static class RecapPanel
 
     private static Control Named(Control view, int index)
     {
-        view.Name = Views[index];
+        view.Name = Views[index].Split('.')[^1];
         return view;
     }
 
@@ -93,7 +94,7 @@ internal static class RecapPanel
             pad.Rows.Clear();
             pad.Scroll = null;
             Control failed = k.Box(DesignW, DesignH);
-            failed.AddChild(k.At(k.Text("This view couldn't be drawn this time. The details are in the mod's log.", 18, RecapTheme.Muted), 40, 160));
+            failed.AddChild(k.At(k.Text(Loc.Text("WHO_CARRIED.error.view"), 18, RecapTheme.Muted), 40, 160));
             return Named(failed, index);
         }
     }
@@ -151,7 +152,7 @@ internal static class RecapPanel
         // opens the thing. The cap is the control — clicking it starts HotkeyRebind listening.
         HBoxContainer keys = k.Row(10);
         Button cap = HewnStone.Cap(k, HotkeyBinding.Name ?? "—");
-        Label keyText = k.Text(HotkeyBinding.Name == null ? "no key opens the recap" : "toggles the recap", 17, RecapTheme.Faint);
+        Label keyText = k.Text(HotkeyBinding.Name == null ? Loc.Text("WHO_CARRIED.hotkey.unbound") : Loc.Text("WHO_CARRIED.hotkey.toggle"), 17, RecapTheme.Faint);
         Label keyHint = k.Caps("", 13, RecapTheme.Faint, 2);
         keys.AddChild(Kit.Center(cap));
         keys.AddChild(Kit.Center(keyText));
@@ -177,7 +178,7 @@ internal static class RecapPanel
             hints.MouseOnly(closeCap);
             closing.AddChild(Kit.Center(closeCap));
         }
-        Button close = HewnStone.Word(k, "Close");
+        Button close = HewnStone.Word(k, Loc.Text("WHO_CARRIED.action.close"));
         close.Pressed += onClose;
         closing.AddChild(Kit.Center(close));
         // Close is placed by hand rather than by the row, so it has to centre itself on the row's band the way
@@ -265,15 +266,6 @@ internal static class RecapPanel
         Control nav = k.At(k.Box(1520, 50), 40, top);
         nav.AddChild(k.At(new ColorRect { Color = RecapTheme.Line, MouseFilter = Control.MouseFilterEnum.Ignore }, 0,
             HandLayout.TabLine - top, 1520, 1));
-        // The tabs run to Decks at x 679 and the stroke under the chosen tab finishes on HandLayout.TabLine. The export
-        // starts two tab gutters clear of Decks and rests ON that line rather than across it: the shadow's underside is
-        // what touches it, so the rule runs beneath the whole object instead of through its bottom edge. Nav's own
-        // origin is (40, TabsTop), which is what these numbers are relative to.
-        save.Position = k.V(699, HandLayout.TabLine - HewnStone.SlabHeight - HewnStone.ShadowDrop - top);
-        Panel saveShadow = HewnStone.Shadow(k, save);
-        nav.AddChild(saveShadow);
-        nav.AddChild(save);
-        HewnStone.Lift(save, k);
         // The stroke sits in a clipping box that grows from nothing, so it looks painted on.
         var stroke = new Control { ClipContents = true, MouseFilter = Control.MouseFilterEnum.Ignore };
         TextureRect brush = k.Stretch(GameArt.Get(GameArt.Brush), 0, 16, RecapTheme.Gold);
@@ -285,13 +277,13 @@ internal static class RecapPanel
         for (int i = 0; i < Views.Length; i++)
         {
             int index = i;
-            var tab = new Button { Text = Views[i], Flat = true, FocusMode = Control.FocusModeEnum.None, MouseFilter = Control.MouseFilterEnum.Stop };
+            var tab = new Button { Text = Loc.Text(Views[i]), Flat = true, FocusMode = Control.FocusModeEnum.None, MouseFilter = Control.MouseFilterEnum.Stop };
             if (RecapTheme.Bold is Font font) tab.AddThemeFontOverride("font", font);
             tab.AddThemeFontSizeOverride("font_size", k.F(19));
             tab.AddThemeColorOverride("font_outline_color", RecapTheme.Ink);
             foreach (string state in new[] { "normal", "hover", "pressed", "hover_pressed", "focus" })
                 tab.AddThemeStyleboxOverride(state, new StyleBoxEmpty());
-            float width = (RecapTheme.Bold?.GetStringSize(Views[i], HorizontalAlignment.Left, -1, k.F(19)).X ?? Views[i].Length * k.U(10)) / k.S;
+            float width = (RecapTheme.Bold?.GetStringSize(tab.Text, HorizontalAlignment.Left, -1, k.F(19)).X ?? tab.Text.Length * k.U(10)) / k.S;
             tab.Position = k.V(x, 0);
             tab.Size = k.V(width, HandLayout.TabsBottom - top);
             tab.Pressed += () => tabs.CurrentTab = index;
@@ -299,6 +291,12 @@ internal static class RecapPanel
             buttons.Add((tab, x, width));
             x += width + 30;
         }
+
+        // Leave space after the measured, translated tabs (including the controller hint).
+        save.Position = k.V(x + 20, HandLayout.TabLine - HewnStone.SlabHeight - HewnStone.ShadowDrop - top);
+        nav.AddChild(HewnStone.Shadow(k, save));
+        nav.AddChild(save);
+        HewnStone.Lift(save, k);
 
         // LB and RB either side of the tabs, in controller mode only.
         float glyphY = (HandLayout.TabsBottom - top - 28) / 2;
