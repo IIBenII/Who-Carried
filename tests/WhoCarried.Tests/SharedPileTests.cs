@@ -92,6 +92,45 @@ public static class SharedPileTests
         Check.Equal("1:19,3:6", Show(doom.Credit(40, 25)), "25 HP left: 18.75 and 6.25");
     }
 
+    /// <summary>
+    /// Zone the Spire's Hallowed turns half of itself into Doom on an enemy that has both, naming the enemy as the Doom's
+    /// applier. The new Doom is passed on by the Hallowed's shares, so a Doom kill credits whoever applied the Hallowed.
+    /// </summary>
+    [Test]
+    public static void DoomTurnedFromYourHallowedCountsForYou()
+    {
+        SharedPile doom = Pile((Ash, 4));
+        var hallowed = new StackLedger();
+        hallowed.Add(You, 10);
+        IReadOnlyDictionary<ulong, int> passed = DebuffBonus.Split(5, hallowed.Active());
+        doom.Add(Parts(passed), pileAfter: 9);
+        Check.Equal("1:10,2:8", Show(doom.Credit(9, 18)), "an 18 HP Doom kill: your 5 of 9, Ash's 4");
+    }
+
+    [Test]
+    public static void HallowedTwoPlayersStackedPassesItsDoomOnByTheirShares()
+    {
+        SharedPile doom = Pile((Ash, 4));
+        var hallowed = new StackLedger();
+        hallowed.Add(You, 6);
+        hallowed.Add(Jo, 3);
+        IReadOnlyDictionary<ulong, int> passed = DebuffBonus.Split(5, hallowed.Active());
+        Check.Equal("1:3,3:2", Show(passed), "5 Doom: 3.33 and 1.67");
+        doom.Add(Parts(passed), pileAfter: 9);
+        Check.Equal("1:10,2:13,3:7", Show(doom.Credit(9, 30)), "a 30 HP Doom kill: 10, 13.33 and 6.67");
+    }
+
+    [Test]
+    public static void SeveralOwnersLandingInOneChangeKeepTheirStacks()
+    {
+        SharedPile doom = Pile((Ash, 4));
+        doom.Add(new List<(ulong?, int)> { (You, 3), (Jo, 2) }, pileAfter: 9);
+        Check.Equal("1:3,2:4,3:2", Show(doom.Credit(9, 9)), "none of it taken as nobody's");
+    }
+
+    private static List<(ulong?, int)> Parts(IReadOnlyDictionary<ulong, int> split) =>
+        split.Select(kv => ((ulong?)kv.Key, kv.Value)).ToList();
+
     [Test]
     public static void AThreeWayTieWithOneSparePointGoesRoundAllThree()
     {

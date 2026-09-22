@@ -246,6 +246,74 @@ public static class EffectScopesTests
         Same(null, s.Effect, "still nothing");
     }
 
+    /// <summary>A direct kill: notes what it counts for as it starts, the way the kill command's prefix does.</summary>
+    private static Task Kill(EffectScopes s, List<object?> kills, Task? pause = null, Func<Task>? inside = null)
+    {
+        EffectScopes.Frame frame = s.EnterKill(out object? effect);
+        kills.Add(effect);
+        Task? task = null;
+        try { return task = Dying(pause, inside); }
+        finally { s.LeaveKill(frame, task); }
+    }
+
+    private static async Task Dying(Task? pause, Func<Task>? inside)
+    {
+        if (pause != null) await pause;
+        if (inside != null) await inside();
+    }
+
+    [Test]
+    public static void AKillATurnHookStartsCountsForThatEffect() => Run(async () =>
+    {
+        var s = new EffectScopes();
+        var hallowed = new Effect("hallowed");
+        var kills = new List<object?>();
+        await Hook(s, hallowed, () => Kill(s, kills));
+        Same(hallowed, kills.Single(), "the judging effect");
+    });
+
+    [Test]
+    public static void AKillWithNothingRunningCountsForNothing() => Run(async () =>
+    {
+        var s = new EffectScopes();
+        var kills = new List<object?>();
+        await Kill(s, kills);
+        Same(null, kills.Single(), "a card's or a move's kill");
+    });
+
+    [Test]
+    public static void MinionsDyingWithTheirLeaderCountForNothing() => Run(async () =>
+    {
+        var s = new EffectScopes();
+        var hallowed = new Effect("hallowed");
+        var kills = new List<object?>();
+        TaskCompletionSource gate = Gate();
+        Task hook = Hook(s, hallowed, () => Kill(s, kills, gate.Task, inside: () => Kill(s, kills)));
+        gate.SetResult();
+        await hook;
+        Same(hallowed, kills[0], "the leader");
+        Same(null, kills[1], "its minions, killed inside the leader's kill");
+    });
+
+    [Test]
+    public static void KillsOneAfterAnotherEachCount() => Run(async () =>
+    {
+        // Doom kills its creatures one at a time, each waited for.
+        var s = new EffectScopes();
+        var doom = new Effect("doom");
+        var kills = new List<object?>();
+        TaskCompletionSource gate = Gate();
+        Task hook = Hook(s, doom, async () =>
+        {
+            await Kill(s, kills, gate.Task);
+            await Kill(s, kills);
+        });
+        gate.SetResult();
+        await hook;
+        Same(doom, kills[0], "the first");
+        Same(doom, kills[1], "the second, after the first finished");
+    });
+
     [Test]
     public static void OnlyTurnStartAndEndHooksAreWatched()
     {

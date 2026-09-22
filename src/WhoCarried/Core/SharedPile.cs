@@ -29,6 +29,21 @@ public sealed class SharedPile
     }
 
     /// <summary>
+    /// Stacks that landed in one change but belong to several owners (Doom a player's Hallowed turned into, passed on
+    /// by its shares); <paramref name="pileAfter"/> includes them all. Each part lands in turn, so none of it is first
+    /// taken for stacks nobody was seen adding.
+    /// </summary>
+    public void Add(IReadOnlyList<(ulong? Player, int Stacks)> parts, int pileAfter)
+    {
+        int size = pileAfter - parts.Sum(p => Math.Max(0, p.Stacks));
+        foreach ((ulong? player, int stacks) in parts)
+        {
+            if (stacks <= 0) continue;
+            Add(player, stacks, size += stacks);
+        }
+    }
+
+    /// <summary>
     /// Shares out <paramref name="damage"/> that the pile just dealt at size <paramref name="pileNow"/>: whole points per
     /// player that add up to the damage. Empty when there's no damage or no player has a share.
     /// </summary>

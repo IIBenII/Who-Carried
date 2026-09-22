@@ -106,6 +106,7 @@ internal static class Tracker
         AbsorbLayers.Clear();
         SelfFire.Clear();
         EffectSources.NewFight();
+        _doomKilled.Clear();
         _fightLows.Clear();
         _fallen.Clear();
         string label = GameReader.EncounterLabel(combat);
@@ -373,21 +374,54 @@ internal static class Tracker
             }
             if (shares != null)
             {
-                foreach ((ulong player, int part) in shares) RecordDoomKill(player, source.Source, part, creature);
+                foreach ((ulong player, int part) in shares) RecordKill(player, source.Source, part, creature, "doom kill");
             }
             else
             {
-                RecordDoomKill(source.OwnerId, source.Source, hp, creature);
+                RecordKill(source.OwnerId, source.Source, hp, creature, "doom kill");
             }
+            _doomKilled.Add(creature);
         }
         Touch();
     }
 
-    private static void RecordDoomKill(ulong? player, SourceRef source, int hp, Creature creature)
+    /// <summary>Enemies whose Doom kill is counted, so the kill command that follows doesn't count them again.</summary>
+    private static readonly HashSet<Creature> _doomKilled = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
+    /// Creatures about to be killed outright, while <paramref name="effect"/>'s turn hook runs (Zone the Spire's
+    /// Hallowed judging at the end of a turn). Like a Doom kill, the HP goes with no damage hooks: count it as the
+    /// effect's damage. If the enemy carries its own copy of the effect (each judged enemy has its own Hallowed), that
+    /// copy's stacks share it by who applied them; otherwise the effect itself (a player's power or relic) credits its
+    /// player. Nothing is counted with no player behind it (an enemy's Fading ending it), for players and pets, for
+    /// Doom (<see cref="OnDoomKill"/> did), or with no effect (a card's kill, minions dying with their leader).
+    /// </summary>
+    public static void OnDirectKill(IReadOnlyCollection<Creature> creatures, AbstractModel? effect)
+    {
+        if (effect == null) return;
+        foreach (Creature creature in creatures)
+        {
+            if (creature == null || !creature.IsEnemy || !creature.IsAlive) continue;
+            if (_doomKilled.Remove(creature)) continue;
+            int hp = creature.CurrentHp;
+            if (hp <= 0) continue;
+            PowerModel? own = effect is PowerModel power ? creature.Powers.FirstOrDefault(p => p.GetType() == power.GetType()) : null;
+            SourceCandidate source = FactsExtractor.Candidate(own ?? effect);
+            IReadOnlyDictionary<ulong, int> shares = own != null ? DebuffBonusTracker.ShareKill(own, hp)
+                : source.OwnerId is ulong owner ? new Dictionary<ulong, int> { [owner] = hp }
+                : new Dictionary<ulong, int>();
+            if (shares.Count == 0)
+                _log?.Write($"{Where} direct kill of {Describe(creature)} by {source.Source.Id}: no player behind it");
+            foreach ((ulong player, int part) in shares) RecordKill(player, source.Source, part, creature, "direct kill");
+        }
+        Touch();
+    }
+
+    private static void RecordKill(ulong? player, SourceRef source, int hp, Creature creature, string kind)
     {
         _stats.RecordDamage(player, source, hp);
         _log?.Write($"{Where} {NameOf(player)} <- {source.Kind}:{source.Id} ({source.Label}) " +
-                    $"{hp} hp | target {Describe(creature)}, doom kill");
+                    $"{hp} hp | target {Describe(creature)}, {kind}");
     }
 
     /// <summary>
@@ -407,7 +441,15 @@ internal static class Tracker
         SourceRef debuff = DebuffRef(power);
         ulong? applierPlayer = FactsExtractor.PlayerIdOf(applier);
 
-        if (target.IsEnemy)
+        if (target.IsEnemy && PassedOn(power, applier, applierPlayer, cardSource, stacks) is var (from, parts))
+        {
+            // Not counted as applied: its owners applied the debuff it came from, and that's counted already.
+            DebuffBonusTracker.AddStacks(power, parts);
+            _log?.Write($"{Where} enemy applied {stacks} {debuff.Id} ({debuff.Label}) | target {Describe(target)}, " +
+                        $"applier {Describe(applier)}, stack [{StackIds(context)}], passed on from {from.Id.Entry}: " +
+                        string.Join(", ", parts.Select(p => $"{NameOf(p.Key)} {p.Value}")));
+        }
+        else if (target.IsEnemy)
         {
             ulong? who = Attribution.ResolveApplier(applierPlayer, applier != null && applierPlayer == null,
                 cardSource != null ? FactsExtractor.Candidate(cardSource) : null, FactsExtractor.StackTop(context));
@@ -425,6 +467,23 @@ internal static class Tracker
                         $"applier {Describe(applier)}");
         }
         Touch();
+    }
+
+    /// <summary>
+    /// Stacks landing on an enemy with no player or card behind them, while another debuff on the same enemy acts at the
+    /// start or end of a turn: that debuff handing part of itself on (Zone the Spire's Hallowed turning half of itself
+    /// into Doom, naming the enemy as the applier). The new stacks belong to whoever owns that debuff, by the same
+    /// shares, so a Doom kill credits whoever applied the Hallowed. Null for any other stacks, and when no player owns
+    /// the debuff acting (an enemy's own), so they stay nobody's.
+    /// </summary>
+    private static (PowerModel From, IReadOnlyDictionary<ulong, int> Parts)? PassedOn(PowerModel power, Creature? applier,
+        ulong? applierPlayer, CardModel? cardSource, int stacks)
+    {
+        if (applierPlayer != null || cardSource != null || (applier != null && applier != power.Owner)) return null;
+        if (EffectSources.Running is not PowerModel from || ReferenceEquals(from, power) || from.Owner != power.Owner ||
+            from.Type != PowerType.Debuff) return null;
+        IReadOnlyDictionary<ulong, int> parts = DebuffBonusTracker.PassOn(from, stacks);
+        return parts.Count > 0 ? (from, parts) : null;
     }
 
     /// <summary>

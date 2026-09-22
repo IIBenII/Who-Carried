@@ -117,6 +117,25 @@ public static class ReplayTests
     }
 
     [Test]
+    public static void ADirectKillReplaysAsTheEffectsDamage()
+    {
+        string[] log =
+        {
+            LogReplay.HeaderLine("1.2.0", "SEED4:1790115779", new DateTime(2026, 9, 22, 23, 54, 0)),
+            "player 1 = Ash (The Guardian) #ca5b5b",
+            "player 2 = Jo (The Necrobinder) #ee82ee",
+            "[F37 A3] fight start: Battleworn Dummy [unknown]",
+            "[F37 A3] Ash <- Power:ZONETHESPIRE-HALLOWED_POWER (Hallowed) 60 hp | target BATTLE_FRIEND_V3, direct kill",
+            "[F37 A3] Jo <- Power:ZONETHESPIRE-HALLOWED_POWER (Hallowed) 27 hp | target BATTLE_FRIEND_V3, direct kill",
+            "[F37 A3] fight end, saved",
+        };
+        RunStats stats = LogReplay.Parse(log).Stats;
+        Check.Equal(60, stats.Get(1)!.Sources["Power:ZONETHESPIRE-HALLOWED_POWER"].Amount, "Ash's Hallowed");
+        Check.Equal(27, stats.Get(2)!.Sources["Power:ZONETHESPIRE-HALLOWED_POWER"].Amount, "Jo's Hallowed");
+        Check.Equal("Hallowed", stats.Get(1)!.Sources["Power:ZONETHESPIRE-HALLOWED_POWER"].Label, "label");
+    }
+
+    [Test]
     public static void PrettyTurnsIdsIntoNames()
     {
         Check.Equal("Unleash", LogReplay.Pretty("UNLEASH"), "plain");

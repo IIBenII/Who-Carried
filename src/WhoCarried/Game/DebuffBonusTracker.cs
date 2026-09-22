@@ -235,6 +235,41 @@ internal static class DebuffBonusTracker
         return DebuffBonus.Split(amount, Fallback(power, ledger));
     }
 
+    /// <summary>Stacks that landed on an enemy's debuff in one change, owned by several players.</summary>
+    public static void AddStacks(PowerModel power, IReadOnlyDictionary<ulong, int> parts)
+    {
+        if (IsSharedPile(power))
+        {
+            Piles.GetOrCreateValue(power).Add(parts.Select(p => ((ulong?)p.Key, p.Value)).ToList(), power.Amount);
+            return;
+        }
+        StackLedger ledger = Stacks.GetOrCreateValue(power);
+        foreach ((ulong player, int stacks) in parts) ledger.Add(player, stacks);
+    }
+
+    /// <summary>
+    /// <paramref name="stacks"/> that <paramref name="from"/> is handing on (Zone the Spire's Hallowed turning half of
+    /// itself into Doom), shared by who owns it right now: its pile for Poison and Doom, otherwise the same weights as
+    /// <see cref="Share"/>. Empty when no player owns any of it.
+    /// </summary>
+    public static IReadOnlyDictionary<ulong, int> PassOn(PowerModel from, int stacks)
+    {
+        if (!IsSharedPile(from)) return DebuffBonus.Split(stacks, Weights(from));
+        IReadOnlyList<(ulong Player, decimal Share)> shares = Piles.GetOrCreateValue(from).Shares();
+        int[] parts = DebuffBonus.SplitIndexed(stacks, shares.Select(s => s.Share).ToList());
+        var passed = new Dictionary<ulong, int>();
+        for (int i = 0; i < shares.Count; i++)
+            if (parts[i] > 0) passed[shares[i].Player] = parts[i];
+        return passed;
+    }
+
+    /// <summary>
+    /// Shares out a creature's remaining HP that this debuff took with a direct kill (a mod's Doom-like judgement), by
+    /// the same weights as <see cref="Share"/>, or by the pile for Poison and Doom. Empty when no player stacked it.
+    /// </summary>
+    public static IReadOnlyDictionary<ulong, int> ShareKill(PowerModel power, int hp) =>
+        IsSharedPile(power) ? SplitPile(power, hp) ?? DebuffBonus.Split(hp, Fallback(power, null)) : Share(power, hp);
+
     /// <summary>No player's stacks left: the power's own applier, failing that everyone who ever stacked it.</summary>
     private static IReadOnlyList<(ulong Player, int Weight)> Fallback(PowerModel power, StackLedger? ledger)
     {

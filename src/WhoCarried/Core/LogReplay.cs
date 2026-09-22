@@ -20,7 +20,8 @@ public static class LogReplay
     private static readonly Regex FightStart = new(Where + @"fight start: (.*?)(?: \[(\w+)\])?$", RegexOptions.Compiled);
     private static readonly Regex FightEnd = new(Where + @"fight end", RegexOptions.Compiled);
     private static readonly Regex Hit = new(Where + @"(.+?) <- (\w+):(\S+) \((.*)\) (\d+) hp \| target (.*?), blocked (\d+), dealer (.*), stack \[(.*)\]$", RegexOptions.Compiled);
-    private static readonly Regex DoomKill = new(Where + @"(.+?) <- (\w+):(\S+) \((.*)\) (\d+) hp \| target (.*), doom kill$", RegexOptions.Compiled);
+    // Doom's, and any other effect's that kills outright (Zone the Spire's Hallowed).
+    private static readonly Regex Kill = new(Where + @"(.+?) <- (\w+):(\S+) \((.*)\) (\d+) hp \| target (.*), (?:doom|direct) kill$", RegexOptions.Compiled);
     private static readonly Regex Applied = new(Where + @"(.+?) applied (\d+) (\S+) \((.*)\) \| target", RegexOptions.Compiled);
     private static readonly Regex Received = new(Where + @"(.+?) received (\d+) (\S+) \((.*)\) \| applier", RegexOptions.Compiled);
     private static readonly Regex Bonus = new(Where + @"(.+?) \+(\d+) bonus via (\S+) \((.*)\) on ", RegexOptions.Compiled);
@@ -82,7 +83,7 @@ public static class LogReplay
                 SourceRef source = Source(m.Groups[4].Value, m.Groups[5].Value, m.Groups[6].Value, m.Groups[11].Value, title);
                 stats.RecordDamage(Who(m.Groups[3].Value), source, Int(m.Groups[7]), Int(m.Groups[9]));
             }
-            else if ((m = DoomKill.Match(line)).Success)
+            else if ((m = Kill.Match(line)).Success)
             {
                 SourceRef source = Source(m.Groups[4].Value, m.Groups[5].Value, m.Groups[6].Value, "", title);
                 stats.RecordDamage(Who(m.Groups[3].Value), source, Int(m.Groups[7]));
