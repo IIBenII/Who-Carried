@@ -18,6 +18,8 @@ public static class ModEntry
         typeof(DoomKillPatch),
         typeof(AfterPowerAmountChangedPatch),
         typeof(BeforeDamageReceivedPatch),
+        typeof(ModifyDamagePatch),
+        typeof(ModifyHpLostPatch),
         typeof(BeforeBlockGainedPatch),
         typeof(CardGeneratedPatch),
         typeof(BeforeCombatStartPatch),
@@ -53,6 +55,9 @@ public static class ModEntry
         {
             try { Tracker.OnRunStarted(run); }
             catch (Exception e) { Tracker.LogError("RunStarted", e); }
+            // Once every mod's content is registered; after the run's log starts, so its summary lands in it.
+            try { EffectSources.InstallOnce(Tracker.DataDir); }
+            catch (Exception e) { Tracker.LogError("effect sources", e); }
         };
 
         RecapUi.Install();

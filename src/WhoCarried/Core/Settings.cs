@@ -14,6 +14,21 @@ public sealed class Settings
     [JsonPropertyName("hotkey")]
     public string Hotkey { get; set; } = DefaultHotkey;
 
+    /// <summary>
+    /// Credits damage that arrives with no dealer and no card (a modded power ticking at the start of a turn) to the
+    /// effect that was running when it started. Experimental, so off unless set by hand; read at start-up.
+    /// </summary>
+    [JsonPropertyName("experimentalEffectSources")]
+    public bool ExperimentalEffectSources { get; set; }
+
+    /// <summary>A copy with another hotkey, keeping every other setting.</summary>
+    public Settings WithHotkey(string hotkey)
+    {
+        var copy = (Settings)MemberwiseClone();
+        copy.Hotkey = hotkey;
+        return copy;
+    }
+
     public static string PathIn(string dir) => Path.Combine(dir, "settings.json");
 
     /// <summary>Loads settings or defaults. A missing file is normal; other failures are returned to the caller.</summary>

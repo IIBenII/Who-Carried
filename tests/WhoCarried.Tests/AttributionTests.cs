@@ -9,10 +9,13 @@ public static class AttributionTests
     private static readonly SourceRef Ashes = new(SourceKind.Relic, "CHARONS_ASHES", "Charon's Ashes");
     private static readonly SourceRef Poison = new(SourceKind.Power, "POISON_POWER", "Poison");
 
+    private static readonly SourceRef Burn = new(SourceKind.Power, "HEXTECH_BURN_POWER", "Burn");
+
     private static DamageFacts Facts(ulong? dealer = null, SourceCandidate? pet = null, SourceCandidate? card = null,
-                                     SourceCandidate? stack = null, SourceCandidate? fallback = null) =>
+                                     SourceCandidate? stack = null, SourceCandidate? fallback = null,
+                                     SourceCandidate? effect = null) =>
         new(HpRemoved: 7, Blocked: 0, TargetIsEnemy: true, TargetPlayerId: null, DealerPlayerId: dealer,
-            Pet: pet, Card: card, StackTop: stack, Fallback: fallback);
+            Pet: pet, Card: card, StackTop: stack, Fallback: fallback, Effect: effect);
 
     [Test]
     public static void AnOrbFiringOnItsOwnIsCreditedToTheOrb()
@@ -114,5 +117,49 @@ public static class AttributionTests
         AttributionResult r = Attribution.Resolve(Facts());
         Check.Equal<ulong?>(null, r.PlayerId, "player");
         Check.Equal(SourceRef.Unknown, r.Source, "source");
+    }
+
+    [Test]
+    public static void ARunningEffectCreditsAHitWithNothingElseToGoOn()
+    {
+        // Hextech Burn ticking at turn start: no dealer, no card, a fresh context. The live power was running.
+        AttributionResult r = Attribution.Resolve(Facts(effect: new(Burn, 1)));
+        Check.Equal(Burn, r.Source, "the effect");
+        Check.Equal<ulong?>(1, r.PlayerId, "whoever applied it");
+    }
+
+    [Test]
+    public static void ARunningEffectBeatsThePoisonGuess()
+    {
+        // Burn ticking on a poisoned enemy: the target's Poison is only a guess; the running Burn is what happened.
+        AttributionResult r = Attribution.Resolve(Facts(effect: new(Burn, 1), fallback: new(Poison, 2)));
+        Check.Equal(Burn, r.Source, "Burn, not Poison");
+        Check.Equal<ulong?>(1, r.PlayerId, "Burn's player");
+    }
+
+    [Test]
+    public static void ACardOrTheStackStillBeatsARunningEffect()
+    {
+        Check.Equal(Strike, Attribution.Resolve(Facts(card: new(Strike, 2), effect: new(Burn, 1))).Source, "card");
+        Check.Equal(Ashes, Attribution.Resolve(Facts(stack: new(Ashes, 2), effect: new(Burn, 1))).Source, "stack");
+    }
+
+    [Test]
+    public static void AnEnemysRunningEffectIsNamedButCreditsNobody()
+    {
+        AttributionResult r = Attribution.Resolve(Facts(effect: new(Burn, null)));
+        Check.Equal(Burn, r.Source, "named");
+        Check.Equal<ulong?>(null, r.PlayerId, "no player");
+    }
+
+    [Test]
+    public static void OnlyAHitNothingExplainsCanBeAPoisonTick()
+    {
+        Check.True(Attribution.IsPileTick(Facts(), hasDealer: false, effectIsPile: null), "nothing seen: as before");
+        Check.True(Attribution.IsPileTick(Facts(effect: new(Poison, 1)), hasDealer: false, effectIsPile: true), "Poison itself was running");
+        Check.True(!Attribution.IsPileTick(Facts(effect: new(Burn, 1)), hasDealer: false, effectIsPile: false), "Burn on a poisoned enemy");
+        Check.True(!Attribution.IsPileTick(Facts(card: new(Strike, 1)), hasDealer: false, effectIsPile: null), "a card");
+        Check.True(!Attribution.IsPileTick(Facts(stack: new(Ashes, 1)), hasDealer: false, effectIsPile: null), "the stack");
+        Check.True(!Attribution.IsPileTick(Facts(), hasDealer: true, effectIsPile: null), "a dealer");
     }
 }

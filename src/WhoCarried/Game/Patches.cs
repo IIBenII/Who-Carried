@@ -1,5 +1,6 @@
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
@@ -40,6 +41,42 @@ internal static class BeforeDamageReceivedPatch
     {
         try { Tracker.OnBeforeDamage(target, amount, props, dealer, cardSource); }
         catch (Exception e) { Tracker.LogError("BeforeDamageReceived", e); }
+    }
+}
+
+/// <summary>
+/// The game's damage calculation, run for previews as well as real hits. For a real hit (every modifier, no preview)
+/// this remembers the damage it started from, which BeforeDamageReceived doesn't pass: the result is floored at zero,
+/// so it's the only way to tell how big a hit was that Strength loss took to nothing.
+/// </summary>
+[HarmonyPatch(typeof(Hook), nameof(Hook.ModifyDamage))]
+internal static class ModifyDamagePatch
+{
+    private static void Postfix(Creature? target, Creature? dealer, decimal damage, ValueProp props,
+                                ModifyDamageHookType modifyDamageHookType, CardPreviewMode previewMode, decimal __result)
+    {
+        if (target == null || modifyDamageHookType != ModifyDamageHookType.All || previewMode != CardPreviewMode.None) return;
+        try { DebuffBonusTracker.OnDamageCalculated(target, dealer, damage, props, __result); }
+        catch (Exception e) { Tracker.LogError("ModifyDamage", e); }
+    }
+}
+
+/// <summary>
+/// The game's HP-loss calculation: the one place every layer between block and HP settles, whoever added it. What a
+/// layer ate is the difference between what went in and what came out (see <see cref="AbsorbLayers"/>).
+/// Runs last of all the patches on this method, so it sees what other mods' layers left behind.
+/// </summary>
+[HarmonyPatch(typeof(Hook), nameof(Hook.ModifyHpLost))]
+internal static class ModifyHpLostPatch
+{
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(Creature target, decimal amount, HpLossHookPhase phases, decimal __result,
+                                ref IEnumerable<AbstractModel> modifiers)
+    {
+        // Real damage settles one phase at a time; a call naming both is a preview and never removes HP.
+        if (phases != HpLossHookPhase.BeforeOsty && phases != HpLossHookPhase.AfterOsty) return;
+        try { AbsorbLayers.Measured(target, amount, __result, modifiers); }
+        catch (Exception e) { Tracker.LogError("ModifyHpLost", e); }
     }
 }
 

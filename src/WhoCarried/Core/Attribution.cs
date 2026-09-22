@@ -4,7 +4,8 @@ public readonly record struct AttributionResult(ulong? PlayerId, SourceRef Sourc
 
 /// <summary>
 /// Decides who gets credit for a hit on an enemy, and under which source.
-/// Source precedence: pet, then card, then the model on top of the choice-context stack, then the fallback (poison).
+/// Source precedence: pet, then card, then the model on top of the choice-context stack, then the effect seen running
+/// (hits with no dealer), then the fallback (poison, or what fired on its own a moment ago).
 /// Player precedence: the dealer's player (pets resolve to their owner), then the chosen source's owner.
 /// </summary>
 public static class Attribution
@@ -21,9 +22,18 @@ public static class Attribution
                 : PetVia(pet, trigger.Source);
             return new AttributionResult(facts.DealerPlayerId ?? facts.Pet.OwnerId, source);
         }
-        SourceCandidate? chosen = facts.Card ?? facts.StackTop ?? facts.Fallback;
+        // What was seen running beats the fallback's guess (a debuff the target happens to have).
+        SourceCandidate? chosen = facts.Card ?? facts.StackTop ?? facts.Effect ?? facts.Fallback;
         return new AttributionResult(facts.DealerPlayerId ?? chosen?.OwnerId, chosen?.Source ?? SourceRef.Unknown);
     }
+
+    /// <summary>
+    /// Whether a hit on a Poison-style pile's holder can be that pile's tick: nothing explains it (no dealer, no card,
+    /// nothing on the stack), and no other effect was seen running when its damage started.
+    /// </summary>
+    /// <param name="effectIsPile">Whether the effect seen running was the pile itself; null when none was seen.</param>
+    public static bool IsPileTick(DamageFacts facts, bool hasDealer, bool? effectIsPile) =>
+        !hasDealer && facts.Card == null && facts.StackTop == null && effectIsPile != false;
 
     /// <summary>Separator in a pet-via-trigger source id: "OSTY&gt;UNLEASH".</summary>
     public const char ViaSeparator = '>';

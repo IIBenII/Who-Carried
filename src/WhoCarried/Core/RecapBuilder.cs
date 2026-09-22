@@ -35,8 +35,10 @@ public sealed record TimelineSeries(string Label, string ColorHex, IReadOnlyList
 
 /// <param name="Prevented">HP this player's Weak (and similar) kept off the team.</param>
 /// <param name="LowestHp">The lowest HP they lived through (0 = unknown), with their max HP then.</param>
+/// <param name="PetTanked">HP this player's pets (Osty) lost to enemies; not part of <paramref name="Taken"/>.</param>
 public sealed record DefenseRow(string Label, string ColorHex, int Taken, int Blocked, int Healed, string? IconKey = null,
-                                int Prevented = 0, string Character = "", int LowestHp = 0, int LowestHpMax = 0);
+                                int Prevented = 0, string Character = "", int LowestHp = 0, int LowestHpMax = 0,
+                                int PetTanked = 0);
 
 /// <summary>The run at a glance, for the top bar: floor reached, ascension, play time and seed.</summary>
 public sealed record RunFacts(int Floor, int Ascension, long Seconds, string Seed);
@@ -142,7 +144,8 @@ public static class RecapBuilder
                     defense.GetValueOrDefault(p.NetId)?.Healed ?? 0,
                     IconOf(p),
                     stats.Get(p.NetId)?.DebuffPrevented.Values.Sum(b => b.Amount) ?? 0,
-                    p.Character, lowHp, lowMax);
+                    p.Character, lowHp, lowMax,
+                    stats.Get(p.NetId)?.PetTanked ?? 0);
             })
             .ToList();
 

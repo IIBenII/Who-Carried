@@ -82,6 +82,22 @@ public static class RecapBuilderTests
     }
 
     [Test]
+    public static void DefenseShowsWhatEachPlayersPetTankedApartFromTheirOwnDamageTaken()
+    {
+        // A 12 hit: 2 into Alice's block, 7 into Osty, the last 3 spill over to Alice.
+        var s = new RunStats();
+        s.RecordBlocked(1, 2);
+        s.RecordPetTanked(1, 7);
+        var defense = new Dictionary<ulong, DefenseTotals> { [1] = new(Taken: 3, Healed: 0) };
+        RecapView v = RecapBuilder.Build(s, new[] { Alice, Bob }, defense, "h");
+        DefenseRow alice = v.Defense.Single(r => r.Label == "Alice");
+        Check.Equal(7, alice.PetTanked, "Osty's 7");
+        Check.Equal(3, alice.Taken, "only the spill-over is Alice's own");
+        Check.Equal(2, alice.Blocked, "block counted once");
+        Check.Equal(0, v.Defense.Single(r => r.Label == "Bob").PetTanked, "bob has no pet");
+    }
+
+    [Test]
     public static void EmptyRunDoesNotDivideByZero()
     {
         RecapView v = RecapBuilder.Build(new RunStats(), new[] { Alice, Bob }, NoDefense, "h");

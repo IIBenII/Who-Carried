@@ -94,7 +94,9 @@ internal static class Tracker
     {
         _run ??= run;
         DebuffBonusTracker.Clear();
+        AbsorbLayers.Clear();
         SelfFire.Clear();
+        EffectSources.NewFight();
         _fightLows.Clear();
         _fallen.Clear();
         string label = GameReader.EncounterLabel(combat);
@@ -107,24 +109,42 @@ internal static class Tracker
     public static void OnDamage(PlayerChoiceContext? context, Creature? dealer, DamageResult result, Creature target,
                                 CardModel? cardSource)
     {
-        DamageFacts facts = FactsExtractor.Extract(context, dealer, result, target, cardSource);
+        AbstractModel? effect = EffectSources.DamageSource;
+        DamageFacts facts = FactsExtractor.Extract(context, dealer, result, target, cardSource, effect);
         DebuffBonusTracker.PendingHit? boosted = DebuffBonusTracker.Take(target);
+        // A mod's armour between block and HP: protection this hit spent, counted as block on either side.
+        (int absorbed, IReadOnlyList<string> layers) = AbsorbLayers.Take(target);
+        if (absorbed > 0)
+            _log?.Write($"{Where} armour on {Describe(target)} ate {absorbed} hp" +
+                        (layers.Count > 0 ? $" ({string.Join(", ", layers)})" : ""));
         if (facts.TargetIsEnemy)
         {
             AttributionResult who = Attribution.Resolve(facts);
-            if (PoisonShares(facts, dealer, target) is { } shares)
+            if (effect != null && facts.Effect != null && facts.Card == null && facts.StackTop == null)
+                _log?.Write($"{Where} effect source {EffectSources.InstanceId(effect)}{PowerSides(effect)} -> {NameOf(who.PlayerId)}");
+            if (PoisonShares(facts, dealer, target, effect) is { } shares)
             {
                 foreach ((ulong player, int hp) in shares) RecordHit(player, who.Source, hp, 0, target, dealer, context);
+                // The pile's ticks are shared by who owns it; armour they chewed through isn't split, it's one number.
+                if (absorbed > 0) _stats.RecordDamage(who.PlayerId, who.Source, 0, absorbed);
             }
             else
             {
-                RecordHit(who.PlayerId, who.Source, facts.HpRemoved, facts.Blocked, target, dealer, context);
+                RecordHit(who.PlayerId, who.Source, facts.HpRemoved, facts.Blocked + absorbed, target, dealer, context);
             }
             if (boosted != null) CreditDebuffBonus(boosted, facts, who.PlayerId);
         }
         else if (facts.TargetPlayerId is ulong targetPlayer)
         {
-            _stats.RecordBlocked(targetPlayer, facts.Blocked);
+            _stats.RecordBlocked(targetPlayer, facts.Blocked + absorbed);
+            // A pet (Osty) taking an enemy's hit, often in its owner's place: its own result, HP it lost (block and
+            // any overkill onto the owner come in the owner's result).
+            if (target.Player == null && dealer is { IsEnemy: true } && facts.HpRemoved > 0)
+            {
+                _stats.RecordPetTanked(targetPlayer, facts.HpRemoved);
+                _log?.Write($"{Where} " + LogReplay.PetTookLine(NameOf(targetPlayer), target.Monster?.Id.Entry ?? "?",
+                    facts.HpRemoved, Describe(dealer)));
+            }
         }
         if (target.Player is Player hurt) NoteHp(hurt.NetId, target.CurrentHp, target.MaxHp);
         Touch();
@@ -143,11 +163,12 @@ internal static class Tracker
     /// A Poison tick's HP shared by who owns the pile. Null for any other hit, or if the split can't be made (the hit
     /// then goes to the pile's starter, as before).
     /// </summary>
-    private static IReadOnlyDictionary<ulong, int>? PoisonShares(DamageFacts facts, Creature? dealer, Creature target)
+    private static IReadOnlyDictionary<ulong, int>? PoisonShares(DamageFacts facts, Creature? dealer, Creature target,
+                                                                 AbstractModel? effect)
     {
         try
         {
-            return facts.HpRemoved > 0 && FactsExtractor.PoisonTick(facts, dealer, target) is PoisonPower poison
+            return facts.HpRemoved > 0 && FactsExtractor.PoisonTick(facts, dealer, target, effect) is PoisonPower poison
                 ? DebuffBonusTracker.SplitPile(poison, facts.HpRemoved)
                 : null;
         }
@@ -166,15 +187,19 @@ internal static class Tracker
     /// Hits on enemies: remember Vulnerable-style boosts for after the hit; if the attacking player is Weak, count the
     /// damage they lost.
     /// Enemy hits on players or pets: credit the HP that Weak and Strength loss on the enemy kept off, and count the
-    /// extra HP a Vulnerable-style debuff on the victim cost them.
+    /// extra HP a Vulnerable-style debuff on the victim cost them. These can arrive as 0 (the game floors damage at
+    /// zero), when Strength loss may be what took the whole attack away.
     /// </summary>
     public static void OnBeforeDamage(Creature target, decimal amount, ValueProp props, Creature? dealer, CardModel? cardSource)
     {
         DebuffBonusTracker.BeforeDamage(target, amount, props, dealer, cardSource);
-        if (dealer == null || amount <= 0m) return;
+        AbsorbLayers.Starting(target); // this hit's armour is measured from here
+        decimal? baseDamage = DebuffBonusTracker.TakeBaseDamage(target, dealer, amount, props);
+        if (dealer == null) return;
 
         if (target.IsEnemy && FactsExtractor.PlayerIdOf(dealer) is ulong attacker)
         {
+            if (amount <= 0m) return;
             foreach (DebuffBonusTracker.Amplifier weak in DebuffBonusTracker.DamageMultipliers(dealer, target, amount, props, dealer, cardSource, m => m > 0m && m < 1m))
             {
                 int lost = (int)(amount / weak.Multiplier) - (int)amount;
@@ -206,7 +231,7 @@ internal static class Tracker
             }
         }
 
-        if (props.IsPoweredAttack()) CreditStrengthLoss(target, amount, props, dealer, cardSource, victim, block, hp);
+        if (props.IsPoweredAttack()) CreditStrengthLoss(target, amount, baseDamage, props, dealer, cardSource, victim, block, hp);
 
         foreach (DebuffBonusTracker.Amplifier vulnerable in DebuffBonusTracker.DamageMultipliers(target, target, amount, props, dealer, cardSource, m => m > 1m))
         {
@@ -220,8 +245,10 @@ internal static class Tracker
     /// Strength an enemy lost to players (Piercing Wail, Dark Shackles for the turn; Malaise for good) made its
     /// attack weaker: the hit would have been bigger by that Strength times the hit's multipliers. The HP difference is
     /// shared between whoever took the Strength away, in proportion to how much each took; exact ties take turns.
+    /// A hit the Strength loss took to nothing is worked out again from where it started (<paramref name="baseDamage"/>),
+    /// with the Strength given back.
     /// </summary>
-    private static void CreditStrengthLoss(Creature target, decimal amount, ValueProp props, Creature dealer,
+    private static void CreditStrengthLoss(Creature target, decimal amount, decimal? baseDamage, ValueProp props, Creature dealer,
                                            CardModel? cardSource, ulong victim, int block, int hp)
     {
         var parts = new List<(ulong Player, SourceRef Debuff, decimal Strength)>();
@@ -239,14 +266,18 @@ internal static class Tracker
         if (removed <= 0m || _run == null) return;
 
         decimal multiplier = DebuffBonusTracker.DamageMultiplier(_run, target, dealer, props, cardSource);
-        int prevented = DebuffBonus.HpDifference(amount + removed * multiplier, amount, block, hp);
+        decimal? restored = amount <= 0m && baseDamage is decimal start
+            ? DebuffBonusTracker.Recalculate(_run, target, dealer, start + removed, props, cardSource)
+            : null;
+        int prevented = DebuffBonus.StrengthPrevented(amount, removed, multiplier, restored, block, hp);
         int[] shares = DebuffBonusTracker.ShareStrengthLoss(dealer, prevented, parts.Select(p => ((p.Player, p.Debuff.Id), p.Strength)).ToList());
+        string without = restored is decimal full ? $", {full} without it" : "";
         for (int i = 0; i < parts.Count; i++)
         {
             if (shares[i] <= 0) continue;
             _stats.RecordDebuffPrevented(parts[i].Player, parts[i].Debuff, shares[i]);
             _log?.Write($"{Where} {NameOf(parts[i].Player)} prevented {shares[i]} via {parts[i].Debuff.Id} ({parts[i].Debuff.Label}) | " +
-                        $"{Describe(dealer)} hit {NameOf(victim)} for {amount}, {removed} Strength removed (x{multiplier}, block {block})");
+                        $"{Describe(dealer)} hit {NameOf(victim)} for {amount}, {removed} Strength removed{without} (x{multiplier}, block {block})");
         }
     }
 
@@ -441,6 +472,7 @@ internal static class Tracker
     public static void OnCombatEnd(IRunState run)
     {
         DebuffBonusTracker.Clear();
+        AbsorbLayers.Clear();
         CommitFightLows();
         _stats.EndFight();
         Save();
@@ -513,6 +545,10 @@ internal static class Tracker
         if (c.PetOwner != null) return $"pet {c.Monster?.Id.Entry ?? "?"} of {NameOf(c.PetOwner.NetId)}";
         return c.Monster?.Id.Entry ?? "?";
     }
+
+    /// <summary>For a power seen running: which creature it's on and who applied it (", on X, applied by Y").</summary>
+    private static string PowerSides(AbstractModel effect) =>
+        effect is PowerModel power ? $", on {Describe(power.Owner)}, applied by {Describe(power.Applier)}" : "";
 
     private static string StackIds(PlayerChoiceContext? context) =>
         string.Join(",", GameCompat.ModelStack(context).Select(m => m.Id.Entry));

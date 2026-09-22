@@ -101,6 +101,49 @@ internal static class DebuffBonusTracker
         }
     }
 
+    /// <summary>A real hit's damage before modifiers, and what the game's calculation made of it.</summary>
+    private sealed record Calc(Creature? Dealer, ValueProp Props, decimal Damage, decimal Result);
+
+    private static readonly Dictionary<Creature, Calc> Calcs = new(ReferenceEqualityComparer.Instance);
+    private static bool _recalculating;
+
+    /// <summary>The game just worked out a real hit's final damage (see <see cref="ModifyDamagePatch"/>).</summary>
+    public static void OnDamageCalculated(Creature target, Creature? dealer, decimal damage, ValueProp props, decimal result)
+    {
+        if (!_recalculating) Calcs[target] = new Calc(dealer, props, damage, result);
+    }
+
+    /// <summary>
+    /// This hit's damage before modifiers, if the game's calculation of it was seen and it matches (same attacker, same
+    /// final damage). Removes it. Null if it wasn't seen.
+    /// </summary>
+    public static decimal? TakeBaseDamage(Creature target, Creature? dealer, decimal amount, ValueProp props) =>
+        Calcs.Remove(target, out Calc? calc) && ReferenceEquals(calc.Dealer, dealer) && calc.Props == props && calc.Result == amount
+            ? calc.Damage
+            : null;
+
+    /// <summary>
+    /// The game's own final damage for a hit that starts at <paramref name="damage"/>: every modifier and cap, floored
+    /// at zero, as it works out a real hit. Isn't remembered as a hit. Null if it can't be worked out.
+    /// </summary>
+    public static decimal? Recalculate(IRunState run, Creature target, Creature dealer, decimal damage, ValueProp props, CardModel? cardSource)
+    {
+        _recalculating = true;
+        try
+        {
+            return GameCompat.ModifyDamage(run, target.CombatState, target, dealer, damage, props, cardSource,
+                ModifyDamageHookType.All, CardPreviewMode.None);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+        finally
+        {
+            _recalculating = false;
+        }
+    }
+
     /// <summary>Temporary Strength-down debuffs on an enemy (Piercing Wail, Dark Shackles) and how much Strength each removes.</summary>
     public static IReadOnlyList<(PowerModel Power, int Amount)> TemporaryStrengthLoss(Creature enemy) =>
         enemy.Powers.Where(p => p is TemporaryStrengthPower && p.Type == PowerType.Debuff && p.Amount > 0)
@@ -136,7 +179,11 @@ internal static class DebuffBonusTracker
     /// <summary>The pending hit on this target, if a debuff boosted it. Removes it.</summary>
     public static PendingHit? Take(Creature target) => Pending.Remove(target, out PendingHit? hit) ? hit : null;
 
-    public static void Clear() => Pending.Clear();
+    public static void Clear()
+    {
+        Pending.Clear();
+        Calcs.Clear();
+    }
 
     /// <summary>Stacks landing on an enemy's debuff; <paramref name="player"/> null when no player applied them.</summary>
     public static void AddStacks(PowerModel power, ulong? player, int stacks)

@@ -65,4 +65,18 @@ public static class RunStatsTests
         s.RecordBlocked(1, 0);
         Check.Equal(12, s.Get(1)!.Blocked, "blocked");
     }
+
+    [Test]
+    public static void PetTankedAccumulatesForTheOwnerAndIgnoresZero()
+    {
+        var s = new RunStats();
+        s.RecordPetTanked(1, 7);
+        s.RecordPetTanked(1, 4);
+        s.RecordPetTanked(1, 0);
+        s.RecordPetTanked(1, -3);
+        Check.Equal(11, s.Get(1)!.PetTanked, "pet tanked");
+        Check.Equal(0, s.Get(1)!.Blocked, "not block");
+        Check.Equal(0, s.Get(1)!.DamageDealt, "not damage");
+        Check.True(s.Get(2) == null, "nobody else");
+    }
 }

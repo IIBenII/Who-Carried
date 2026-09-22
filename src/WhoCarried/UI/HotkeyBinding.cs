@@ -58,7 +58,9 @@ internal static class HotkeyBinding
         try
         {
             if (!_loaded) return;
-            string? error = Settings.Save(new Settings { Hotkey = key == Key.None ? "" : key.ToString() }, _dataDir);
+            // Keep whatever else is in the file (settings made by hand).
+            Settings saved = Settings.Load(_dataDir).Settings;
+            string? error = Settings.Save(saved.WithHotkey(key == Key.None ? "" : key.ToString()), _dataDir);
             Tracker.Note(error == null ? $"hotkey set to {Name ?? "none"}" : $"hotkey set to {Name ?? "none"} but not saved: {error}");
         }
         catch (Exception e)

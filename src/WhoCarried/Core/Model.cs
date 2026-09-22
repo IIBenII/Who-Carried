@@ -14,6 +14,9 @@ public sealed record SourceRef(SourceKind Kind, string Id, string Label)
 public sealed record SourceCandidate(SourceRef Source, ulong? OwnerId);
 
 /// <summary>Plain facts about one damage result, extracted from game objects by Game/FactsExtractor.</summary>
+/// <param name="Effect">
+/// For a hit with no dealer: the game content that was running when its damage started (see <see cref="EffectScopes"/>).
+/// </param>
 public sealed record DamageFacts(
     int HpRemoved,
     int Blocked,
@@ -23,7 +26,8 @@ public sealed record DamageFacts(
     SourceCandidate? Pet,
     SourceCandidate? Card,
     SourceCandidate? StackTop,
-    SourceCandidate? Fallback);
+    SourceCandidate? Fallback,
+    SourceCandidate? Effect = null);
 
 /// <summary>A player as shown in the recap. CharacterId (e.g. "IRONCLAD") is used to look up the character icon.</summary>
 public sealed record PlayerInfo(ulong NetId, string Name, string Character, string ColorHex, string CharacterId = "");

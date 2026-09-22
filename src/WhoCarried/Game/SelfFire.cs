@@ -80,6 +80,13 @@ internal static class Models
         return _byEntry!.GetValueOrDefault(entry);
     }
 
+    /// <summary>Every kind of content the game has registered, every mod's included (read fresh).</summary>
+    public static IReadOnlyCollection<Type> Types()
+    {
+        Build();
+        return _byType!.Keys;
+    }
+
     /// <summary>The model's own picture, from an "Icon" property if it has one (orbs and many mods' content do).</summary>
     public static Texture2D? Icon(string entry)
     {

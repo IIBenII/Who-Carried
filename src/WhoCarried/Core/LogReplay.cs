@@ -25,6 +25,7 @@ public static class LogReplay
     private static readonly Regex Received = new(Where + @"(.+?) received (\d+) (\S+) \((.*)\) \| applier", RegexOptions.Compiled);
     private static readonly Regex Bonus = new(Where + @"(.+?) \+(\d+) bonus via (\S+) \((.*)\) on ", RegexOptions.Compiled);
     private static readonly Regex Prevented = new(Where + @"(.+?) prevented (\d+) via (\S+) \((.*)\) \|", RegexOptions.Compiled);
+    private static readonly Regex PetTook = new(Where + @"(.+?) pet (\S+) took (\d+) hp \|", RegexOptions.Compiled);
     private static readonly Regex RunEnded = new(Where + @"run ended: (victory|defeat)", RegexOptions.Compiled);
     private static readonly Regex HpLow = new(Where + @"(.+?) hp low (\d+)/(\d+)$", RegexOptions.Compiled);
     private static readonly Regex Badge = new(Where + @"(.+?) badge (\S+) \((\w+)\)$", RegexOptions.Compiled);
@@ -36,6 +37,10 @@ public static class LogReplay
     /// <summary>Written when a saved run is picked up again. Its key wins over the header's: see <see cref="RunStatsStore.LoadIfResumable"/>.</summary>
     public static string ResumedLine(string runKey, int fightsRestored) =>
         $"--- resumed run {runKey}: {fightsRestored} fights restored ---";
+
+    /// <summary>A player's pet losing HP to an enemy (after its "[F.. A..] " prefix), which <see cref="Parse"/> reads back.</summary>
+    public static string PetTookLine(string owner, string petId, int hp, string dealer) =>
+        $"{owner} pet {petId} took {hp} hp | dealer {dealer}";
 
     /// <param name="title">Display name for a model id (a card that made a pet attack); null falls back to the id.</param>
     public static Result Parse(IEnumerable<string> lines, Func<string, string?>? title = null)
@@ -101,6 +106,10 @@ public static class LogReplay
             {
                 if (Who(m.Groups[3].Value) is ulong id)
                     stats.RecordDebuffPrevented(id, Power(m.Groups[5].Value, m.Groups[6].Value), Int(m.Groups[4]));
+            }
+            else if ((m = PetTook.Match(line)).Success)
+            {
+                if (Who(m.Groups[3].Value) is ulong id) stats.RecordPetTanked(id, Int(m.Groups[5]));
             }
             else if ((m = RunEnded.Match(line)).Success)
             {

@@ -74,6 +74,25 @@ public static class DebuffBonus
     }
 
     /// <summary>
+    /// HP that Strength taken off an attacker kept off the target: HP the hit would have removed with that Strength
+    /// back, minus HP it will remove, both after the target's block and capped at the target's HP.
+    /// </summary>
+    /// <param name="amount">The hit's final damage, before block. The game floors it at zero.</param>
+    /// <param name="strength">Strength taken off the attacker.</param>
+    /// <param name="multiplier">The product of the hit's damage multipliers, which scale Strength too.</param>
+    /// <param name="restored">
+    /// For a hit floored at zero: the game's own damage for it with the Strength given back. The Strength may have
+    /// taken the hit below zero, so adding it back to zero would overstate it; without this, such a hit gets nothing.
+    /// </param>
+    /// <param name="block">The target's block before the hit.</param>
+    /// <param name="hpCap">The target's current HP.</param>
+    public static int StrengthPrevented(decimal amount, decimal strength, decimal multiplier, decimal? restored, int block, int hpCap)
+    {
+        decimal without = amount > 0m ? amount + strength * multiplier : restored ?? 0m;
+        return HpDifference(without, amount, block, hpCap);
+    }
+
+    /// <summary>
     /// Shares <paramref name="amount"/> between players by weight (stacks each applied). Whole numbers that add up to
     /// the amount: floors first, then the leftover points go to the largest remainders (ties: earlier in the list).
     /// </summary>

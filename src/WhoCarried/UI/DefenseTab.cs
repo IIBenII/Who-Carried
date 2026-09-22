@@ -21,8 +21,11 @@ internal static class DefenseTab
         tab.AddChild(k.At(TeamStrip(k, view, 1522, live), 40, stripY, 1522, -1));
 
         Label note = k.Text("", 15, RecapTheme.Muted);
-        tab.AddChild(k.At(note, 40, stripY + 84));
-        void Note(RecapView v) => note.Text = "The shield is damage your own block soaked up." + (v.PreventedNote.Length > 0 ? " " + v.PreventedNote : "");
+        note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        tab.AddChild(k.At(note, 40, stripY + 84, 1522, -1));
+        void Note(RecapView v) => note.Text = "The shield is damage your own block soaked up." +
+            (v.Defense.Any(r => r.PetTanked > 0) ? " \"Tanked by pets\" is HP your pets lost to enemies, often in your place." : "") +
+            (v.PreventedNote.Length > 0 ? " " + v.PreventedNote : "");
         Note(view);
         live.On(Note);
         return tab;
@@ -39,19 +42,26 @@ internal static class DefenseTab
         grid.AddChild(empty);
 
         static int Scale(RecapView v) => Math.Max(1, v.Defense.Select(r => r.Taken + r.Healed).DefaultIfEmpty(0).Max());
-        var plates = new KeyedRows<(DefenseRow Row, int Max, bool Prevented)>(grid, p => p.Row.Label,
+        var plates = new KeyedRows<PlateItem>(grid, p => p.Row.Label,
             p => compact ? Compact(k, p, plateW, height) : Plate(k, p, plateW, height), offset: 1);
         void Sync(RecapView v)
         {
             empty.Visible = v.Defense.Count == 0;
             int max = Scale(v);
             bool prevented = v.Defense.Any(r => r.Prevented > 0);
-            plates.Sync(InRankOrder(v).Select(r => (r, max, prevented)));
+            bool pets = v.Defense.Any(r => r.PetTanked > 0);
+            plates.Sync(InRankOrder(v).Select(r => new PlateItem(r, max, prevented, pets)));
         }
         Sync(view);
         live?.On(Sync);
         return grid;
     }
+
+    /// <summary>One plate's row, the shared bar scale, and whether anyone has prevention or pet tanking to show.</summary>
+    private readonly record struct PlateItem(DefenseRow Row, int Max, bool Prevented, bool Pets);
+
+    /// <summary>What a pet losing HP in its owner's place is shown with: Osty's own "Die for You".</summary>
+    private const string PetIcon = DebuffBuilder.IconPrefix + "DIE_FOR_YOU_POWER";
 
     /// <summary>Players in scoreboard order, like every other tab.</summary>
     private static IEnumerable<DefenseRow> InRankOrder(RecapView v)
@@ -60,8 +70,7 @@ internal static class DefenseTab
         return v.Defense.OrderBy(r => ranked.IndexOf(r.Label) is int i && i >= 0 ? i : 99);
     }
 
-    private static (Control, Action<(DefenseRow Row, int Max, bool Prevented)>) Plate(Kit k, (DefenseRow Row, int Max, bool Prevented) item,
-                                                                                        float width, float height)
+    private static (Control, Action<PlateItem>) Plate(Kit k, PlateItem item, float width, float height)
     {
         DefenseRow row = item.Row;
         Color color = RecapTheme.FromHex(row.ColorHex), accent = RecapTheme.Accent(row.ColorHex);
@@ -104,9 +113,11 @@ internal static class DefenseTab
         facts.AddChild(blockedLine);
         (Control keptLine, Label kept) = Fact(k, k.Icon(DebuffBuilder.IconPrefix + "WEAK_POWER"), RecapTheme.Teal, " kept off the team");
         facts.AddChild(keptLine);
+        (Control petLine, Label pet) = Fact(k, k.Icon(PetIcon), RecapTheme.Blocked, " tanked by pets");
+        facts.AddChild(petLine);
         right.AddChild(Pad(k, facts, 14));
 
-        void Apply((DefenseRow Row, int Max, bool Prevented) it)
+        void Apply(PlateItem it)
         {
             DefenseRow r = it.Row;
             shieldText.Text = Kit.Num(r.Blocked);
@@ -116,14 +127,15 @@ internal static class DefenseTab
             blocked.Text = Kit.Num(r.Blocked);
             kept.Text = Kit.Num(r.Prevented);
             keptLine.Visible = it.Prevented;
+            pet.Text = Kit.Num(r.PetTanked);
+            petLine.Visible = it.Pets;
         }
         Apply(item);
         return (tip, Apply);
     }
 
     /// <summary>The saved image's smaller plate: portrait, shield and the bar with its numbers under it.</summary>
-    private static (Control, Action<(DefenseRow Row, int Max, bool Prevented)>) Compact(Kit k, (DefenseRow Row, int Max, bool Prevented) item,
-                                                                                          float width, float height)
+    private static (Control, Action<PlateItem>) Compact(Kit k, PlateItem item, float width, float height)
     {
         DefenseRow row = item.Row;
         Color color = RecapTheme.FromHex(row.ColorHex), accent = RecapTheme.Accent(row.ColorHex);
@@ -151,13 +163,16 @@ internal static class DefenseTab
         (Control keptLine, LiveNumber kept) = Amount(k, RecapTheme.Teal, " kept off", 13, 11);
         under.AddChild(keptLine);
         under.AddChild(Kit.Fill());
+        (Control petLine, LiveNumber pet) = Amount(k, RecapTheme.Blocked, " tanked by pets", 13, 11);
+        under.AddChild(petLine);
+        under.AddChild(Kit.Fill());
         (Control healedLine, LiveNumber healed) = Amount(k, RecapTheme.Healed, " healed", 13, 11);
         under.AddChild(healedLine);
         barBox.AddChild(under);
         middle.AddChild(Kit.Center(barBox));
         right.AddChild(middle);
 
-        void Apply((DefenseRow Row, int Max, bool Prevented) it)
+        void Apply(PlateItem it)
         {
             DefenseRow r = it.Row;
             shieldText.Text = Kit.Num(r.Blocked);
@@ -166,6 +181,8 @@ internal static class DefenseTab
             healed.Set(r.Healed);
             kept.Set(r.Prevented);
             keptLine.Visible = it.Prevented;
+            pet.Set(r.PetTanked);
+            petLine.Visible = it.Pets;
         }
         Apply(item);
         return (tip, Apply);
@@ -254,15 +271,17 @@ internal static class DefenseTab
         tip.AddChild(row);
         row.AddChild(Kit.Center(k.Text(view.Defense.Count == 1 ? "The run" : "The team", 20 * scale, RecapTheme.Gold, true, Ink.Soft)));
         Texture2D? heal = k.Icon(DebuffBuilder.IconPrefix + "REGEN_POWER") ?? GameArt.Get(GameArt.Heart);
-        var items = new (Texture2D? Icon, Color Tone, string Words, Func<DefenseRow, int> Value)[]
+        // The last two only show once someone has some.
+        var items = new (Texture2D? Icon, Color Tone, string Words, Func<DefenseRow, int> Value, bool Always)[]
         {
-            (GameArt.Get(GameArt.Heart), RecapTheme.Taken, "damage taken", r => r.Taken),
-            (GameArt.Get(GameArt.Block), RecapTheme.Blocked, "blocked", r => r.Blocked),
-            (heal, RecapTheme.Healed, "healed", r => r.Healed),
-            (k.Icon(DebuffBuilder.IconPrefix + "WEAK_POWER"), RecapTheme.Teal, "kept off by debuffs", r => r.Prevented),
+            (GameArt.Get(GameArt.Heart), RecapTheme.Taken, "damage taken", r => r.Taken, true),
+            (GameArt.Get(GameArt.Block), RecapTheme.Blocked, "blocked", r => r.Blocked, true),
+            (heal, RecapTheme.Healed, "healed", r => r.Healed, true),
+            (k.Icon(PetIcon), RecapTheme.Blocked, "tanked by pets", r => r.PetTanked, false),
+            (k.Icon(DebuffBuilder.IconPrefix + "WEAK_POWER"), RecapTheme.Teal, "kept off by debuffs", r => r.Prevented, false),
         };
-        var numbers = new List<(Control Line, LiveNumber Number, Func<DefenseRow, int> Value)>();
-        foreach ((Texture2D? icon, Color tone, string words, Func<DefenseRow, int> value) in items)
+        var numbers = new List<(Control Line, LiveNumber Number, Func<DefenseRow, int> Value, bool Always)>();
+        foreach ((Texture2D? icon, Color tone, string words, Func<DefenseRow, int> value, bool always) in items)
         {
             HBoxContainer line = k.Row(9 * scale);
             if (icon != null) line.AddChild(Kit.Center(k.Pic(icon, 30 * scale, 30 * scale)));
@@ -270,13 +289,16 @@ internal static class DefenseTab
             line.AddChild(Kit.Center(number.Control));
             line.AddChild(Kit.Center(k.Text(words, 16 * scale, RecapTheme.Muted)));
             row.AddChild(Kit.Center(line));
-            numbers.Add((line, number, value));
+            numbers.Add((line, number, value, always));
         }
         void Apply(RecapView v)
         {
-            foreach ((Control line, LiveNumber number, Func<DefenseRow, int> value) in numbers)
-                number.Set(v.Defense.Sum(value));
-            numbers[^1].Line.Visible = v.Defense.Any(r => r.Prevented > 0);
+            foreach ((Control line, LiveNumber number, Func<DefenseRow, int> value, bool always) in numbers)
+            {
+                int total = v.Defense.Sum(value);
+                number.Set(total);
+                line.Visible = always || total > 0;
+            }
         }
         Apply(view);
         live?.On(Apply);

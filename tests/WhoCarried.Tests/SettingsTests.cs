@@ -87,4 +87,36 @@ public static class SettingsTests
 
         Check.True(File.Exists(Path.Combine(dir, "settings.json")), "settings.json exists");
     }
+
+    [Test]
+    public static void EffectSourcesAreOffUnlessTurnedOn()
+    {
+        Check.True(!Settings.Load(NewDir()).Settings.ExperimentalEffectSources, "no file");
+
+        string dir = NewDir();
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Settings.PathIn(dir), "{ \"hotkey\": \"F9\" }");
+        Check.True(!Settings.Load(dir).Settings.ExperimentalEffectSources, "a file from before the setting");
+
+        File.WriteAllText(Settings.PathIn(dir), "{ \"hotkey\": \"F9\", \"experimentalEffectSources\": true }");
+        (Settings on, string? error) = Settings.Load(dir);
+        Check.Equal<string?>(null, error, "error");
+        Check.True(on.ExperimentalEffectSources, "turned on by hand");
+        Check.Equal("F9", on.Hotkey, "hotkey kept");
+    }
+
+    [Test]
+    public static void ChangingTheHotkeyKeepsTheOtherSettings()
+    {
+        string dir = NewDir();
+        Settings.Save(new Settings { Hotkey = "F8", ExperimentalEffectSources = true }, dir);
+        Settings loaded = Settings.Load(dir).Settings;
+
+        Settings rebound = loaded.WithHotkey("F10");
+        Settings.Save(rebound, dir);
+
+        Check.Equal("F10", rebound.Hotkey, "new key");
+        Check.Equal("F8", loaded.Hotkey, "the original is left alone");
+        Check.True(Settings.Load(dir).Settings.ExperimentalEffectSources, "still on after a rebind");
+    }
 }

@@ -57,6 +57,23 @@ public static class ReplayTests
     }
 
     [Test]
+    public static void ReplayReadsThePetTankingLineItWrites()
+    {
+        string line = LogReplay.PetTookLine("Ironside", "OSTY", 7, "CORPSE_SLUG");
+        Check.Equal("Ironside pet OSTY took 7 hp | dealer CORPSE_SLUG", line, "line");
+        string[] log =
+        {
+            "player 22 = Ironside (The Necrobinder) #ee82ee",
+            "[F2 A1] fight start: Toadpoles",
+            "[F2 A1] " + line,
+            "[F2 A1] " + LogReplay.PetTookLine("Ironside", "OSTY", 5, "TOADPOLE"),
+        };
+        PlayerTotals ironside = LogReplay.Parse(log).Stats.Get(22)!;
+        Check.Equal(12, ironside.PetTanked, "both hits");
+        Check.Equal(0, ironside.DamageDealt, "not damage dealt");
+    }
+
+    [Test]
     public static void ReplayReadsTheHeaderItWrites()
     {
         string header = LogReplay.HeaderLine("0.2.0", "SEED2:1789237700", new DateTime(2026, 9, 12, 19, 28, 0));

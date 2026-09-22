@@ -142,4 +142,44 @@ public static class DebuffBonusTests
         Check.Equal(0, DebuffBonus.Split(5, Array.Empty<(ulong, int)>()).Count, "no weights");
         Check.Equal(7, DebuffBonus.Split(7, new[] { (4UL, 3) })[4], "single applier gets it all");
     }
+
+    [Test]
+    public static void StrengthLossOnAHitThatStillLandsIsTheStrengthTimesTheMultipliers()
+    {
+        // A 12 attack with 8 Strength taken off: 4 lands.
+        Check.Equal(8, DebuffBonus.StrengthPrevented(4m, 8m, 1m, restored: null, block: 0, hpCap: 50), "12 -> 4");
+        // The same under Vulnerable: 18 -> 6.
+        Check.Equal(12, DebuffBonus.StrengthPrevented(6m, 8m, 1.5m, restored: null, block: 0, hpCap: 50), "x1.5");
+        Check.Equal(0, DebuffBonus.StrengthPrevented(4m, 8m, 1m, restored: null, block: 12, hpCap: 50), "blocked either way");
+    }
+
+    [Test]
+    public static void StrengthLossThatZeroesAHitCreditsTheWholeAttack()
+    {
+        // An 8 attack with 8 Strength taken off lands as exactly 0.
+        Check.Equal(8, DebuffBonus.StrengthPrevented(0m, 8m, 1m, restored: 8m, block: 0, hpCap: 50), "8 -> 0");
+    }
+
+    [Test]
+    public static void StrengthLossBelowZeroCreditsOnlyTheAttackNotTheExcessStrength()
+    {
+        // A 6 attack with 8 Strength taken off: the game floors -2 at 0. 6 was kept off, not 8.
+        Check.Equal(6, DebuffBonus.StrengthPrevented(0m, 8m, 1m, restored: 6m, block: 0, hpCap: 50), "6 -> 0");
+    }
+
+    [Test]
+    public static void AZeroedHitStillGoesThroughBlockAndHp()
+    {
+        Check.Equal(0, DebuffBonus.StrengthPrevented(0m, 8m, 1m, restored: 6m, block: 10, hpCap: 50), "block would have taken it all");
+        Check.Equal(2, DebuffBonus.StrengthPrevented(0m, 8m, 1m, restored: 6m, block: 4, hpCap: 50), "2 past block");
+        Check.Equal(9, DebuffBonus.StrengthPrevented(0m, 8m, 1.5m, restored: 9m, block: 0, hpCap: 50), "6 x1.5 Vulnerable");
+        Check.Equal(3, DebuffBonus.StrengthPrevented(0m, 8m, 1m, restored: 6m, block: 0, hpCap: 3), "capped at HP");
+    }
+
+    [Test]
+    public static void AZeroedHitWhoseFullSizeIsUnknownGetsNoCredit()
+    {
+        // Adding the Strength back to 0 would claim 8 whether the attack was 1 or 100.
+        Check.Equal(0, DebuffBonus.StrengthPrevented(0m, 8m, 1m, restored: null, block: 0, hpCap: 50), "no restored value");
+    }
 }

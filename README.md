@@ -26,6 +26,7 @@ When a run ends, the recap opens over the victory or defeat screen and deals eve
 - **Game versions.** One build runs on both the public branch (v0.107) and the beta (v0.111); `Game/GameCompat.cs` looks up the few game APIs that differ by name.
 - **Controller** support: bumpers switch tabs, the d-pad moves around.
 - **Hotkey:** open the recap and click the key on the top bar — the one reading **F8 toggles the recap** — then press the key you want. Esc cancels; Delete or Backspace clears it, leaving the podium button. The setting is saved in `settings.json` in the mod's data folder.
+- **Experimental:** some modded effects deal damage with no dealer and no card (Hextech Runes' Burn), which shows as Unknown. `"experimentalEffectSources": true` in `settings.json` credits it to the effect that was running; restart the game after changing it.
 - **Files** live in the game's save folder under `WhoCarried/` (`%APPDATA%\SlayTheSpire2\WhoCarried` on Windows).
 
 ### Steam Deck and Linux

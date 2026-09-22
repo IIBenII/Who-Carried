@@ -11,8 +11,9 @@ namespace WhoCarried.Game;
 /// <summary>Reads hook arguments into a plain <see cref="DamageFacts"/>. Read-only.</summary>
 internal static class FactsExtractor
 {
+    /// <param name="effect">The live content that started this damage (<see cref="EffectSources"/>); null if none was seen.</param>
     public static DamageFacts Extract(PlayerChoiceContext? context, Creature? dealer, DamageResult result,
-                                      Creature target, CardModel? cardSource) =>
+                                      Creature target, CardModel? cardSource, AbstractModel? effect = null) =>
         new(
             HpRemoved: result.UnblockedDamage,
             Blocked: result.BlockedDamage,
@@ -23,7 +24,9 @@ internal static class FactsExtractor
             Card: cardSource != null ? Candidate(cardSource) : null,
             StackTop: StackTop(context),
             // Only used when there's no card and nothing on the stack: poison ticks, and things firing on their own.
-            Fallback: dealer == null ? PoisonFallback(target) : dealer.Player != null ? SelfFire.Recent(dealer.Player.NetId) : null);
+            Fallback: dealer == null ? PoisonFallback(target) : dealer.Player != null ? SelfFire.Recent(dealer.Player.NetId) : null,
+            // A dealer already says whose hit it is; what was running only fills in for hits without one.
+            Effect: dealer == null && effect != null ? Safe(() => Candidate(effect)) : null);
 
     /// <summary>Player creature → its player; pet → its owner; anything else → null.</summary>
     public static ulong? PlayerIdOf(Creature? creature) => creature?.Player?.NetId ?? creature?.PetOwner?.NetId;
@@ -87,10 +90,15 @@ internal static class FactsExtractor
 
     /// <summary>
     /// The Poison pile a hit came from: no dealer, no card and nothing on the stack (so the fallback credited Poison),
-    /// and the target has Poison. Null for any other hit.
+    /// the target has Poison, and nothing else was seen running (Burn ticking on a poisoned enemy isn't Poison). Null
+    /// for any other hit.
     /// </summary>
-    public static PoisonPower? PoisonTick(DamageFacts facts, Creature? dealer, Creature target) =>
-        dealer == null && facts.Card == null && facts.StackTop == null ? target.GetPower<PoisonPower>() : null;
+    public static PoisonPower? PoisonTick(DamageFacts facts, Creature? dealer, Creature target, AbstractModel? effect)
+    {
+        PoisonPower? poison = target.GetPower<PoisonPower>();
+        bool? effectIsPoison = effect == null ? null : ReferenceEquals(effect, poison);
+        return poison != null && Attribution.IsPileTick(facts, dealer != null, effectIsPoison) ? poison : null;
+    }
 
     private static SourceRef PetSource(Creature pet)
     {

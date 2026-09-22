@@ -40,6 +40,12 @@ public sealed class PlayerTotals
     /// <summary>Damage this player's own block absorbed.</summary>
     public int Blocked { get; set; }
 
+    /// <summary>
+    /// HP this player's pets (Osty) lost to enemies: hits they soaked, for their owner or on their own. Not part of the
+    /// owner's damage taken, which is only the owner's own HP.
+    /// </summary>
+    public int PetTanked { get; set; }
+
     public Dictionary<string, SourceTotal> Sources { get; set; } = new();
 
     /// <summary>Debuff stacks this player put on enemies, by power.</summary>
@@ -144,6 +150,13 @@ public sealed class RunStats
     {
         if (amount <= 0) return;
         GetOrAdd(KeyFor(playerId)).Blocked += amount;
+    }
+
+    /// <summary>HP a player's pet lost to an enemy's hit.</summary>
+    public void RecordPetTanked(ulong playerId, int hp)
+    {
+        if (hp <= 0) return;
+        GetOrAdd(KeyFor(playerId)).PetTanked += hp;
     }
 
     /// <summary>

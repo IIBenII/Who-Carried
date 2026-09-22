@@ -14,6 +14,7 @@ public static class RunStatsStoreTests
         s.RecordDamage(1, new SourceRef(SourceKind.Power, "POISON_POWER", "Poison"), 9);
         s.EndFight();
         s.RecordBlocked(1, 3);
+        s.RecordPetTanked(1, 6);
         return s;
     }
 
@@ -26,6 +27,7 @@ public static class RunStatsStoreTests
         Check.True(loaded != null, "loaded");
         Check.Equal(9, loaded!.Get(1)!.DamageDealt, "damage");
         Check.Equal(3, loaded.Get(1)!.Blocked, "blocked");
+        Check.Equal(6, loaded.Get(1)!.PetTanked, "pet tanked");
         SourceTotal poison = loaded.Get(1)!.Sources["Power:POISON_POWER"];
         Check.Equal(SourceKind.Power, poison.Kind, "kind");
         Check.Equal("Poison", poison.Label, "label");

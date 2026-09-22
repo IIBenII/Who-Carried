@@ -345,6 +345,7 @@ internal static class DevPreview
                 if (fight % 2 == 1)
                     stats.RecordDamage(P(2).NetId, new SourceRef(SourceKind.Power, "DOOM_POWER", "Doom"),
                         rng.Next(20, 60) * act);
+                stats.RecordPetTanked(P(2).NetId, rng.Next(0, 12) * act); // Osty soaking hits
                 stats.RecordDamage(P(3).NetId, new SourceRef(SourceKind.Orb, "LIGHTNING_ORB", "Lightning"), rng.Next(6, 24) * act);
 
                 stats.RecordDebuffApplied(P(0).NetId, vulnerable, rng.Next(2, 5));
