@@ -25,6 +25,8 @@ public static class ModEntry
         typeof(BeforeCombatStartPatch),
         typeof(AfterCombatEndPatch),
         typeof(RunEndedPatch),
+        typeof(NewRunSetUpPatch),
+        typeof(SavedRunSetUpPatch),
         typeof(GameOverScreenPatch),
         typeof(TopBarPatch),
         typeof(TopBarNavigationPatch),

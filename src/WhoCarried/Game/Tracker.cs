@@ -19,6 +19,7 @@ namespace WhoCarried.Game;
 internal static class Tracker
 {
     private static RunStats _stats = new();
+    private static readonly RunOrigin _origin = new();
     private static IRunState? _run;
     private static EventLog? _log;
     private static string _dataDir = "";
@@ -65,11 +66,19 @@ internal static class Tracker
         if (error != null) Log.Warn($"[WhoCarried] moving files from {oldDir}: {error}");
     }
 
+    /// <summary>The game is setting up a run: a new one, or one <paramref name="saved"/> from a save.</summary>
+    public static void OnRunSetUp(bool saved)
+    {
+        if (saved) _origin.SetUpSaved();
+        else _origin.SetUpNew();
+    }
+
     public static void OnRunStarted(IRunState run)
     {
         _run = run;
         string key = GameReader.RunKey(run);
-        RunStats? resumed = RunStatsStore.LoadIfResumable(StatsPath, key, GameReader.LoadedFromSave());
+        bool loaded = _origin.TakeLoadedFromSave(GameReader.ReloadCount());
+        RunStats? resumed = RunStatsStore.LoadIfResumable(StatsPath, key, loaded);
         _stats = resumed ?? new RunStats { RunKey = key };
         if (resumed == null)
         {

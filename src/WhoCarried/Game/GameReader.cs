@@ -252,18 +252,18 @@ internal static class GameReader
     }
 
     /// <summary>
-    /// True when the run starting now was loaded from a save (Continue, or rejoining a co-op run). The game bumps the
-    /// save's reload count before loading it; a new run starts at 0. False if the count can't be read.
+    /// How many times the run starting now has been reloaded; a new run starts at 0. Not proof of a load on its own:
+    /// see <see cref="RunOrigin"/>. 0 if the count can't be read.
     /// </summary>
-    public static bool LoadedFromSave()
+    public static int ReloadCount()
     {
         try
         {
-            return (int)(AccessTools.Field(typeof(RunManager), "_numReloads")?.GetValue(RunManager.Instance) ?? 0) > 0;
+            return (int)(AccessTools.Field(typeof(RunManager), "_numReloads")?.GetValue(RunManager.Instance) ?? 0);
         }
         catch (Exception)
         {
-            return false;
+            return 0;
         }
     }
 

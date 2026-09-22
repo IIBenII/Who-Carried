@@ -2,7 +2,7 @@
 
 Recent investigations: [Hextech Burn's missing attribution](investigations/2026-09-18-hextech-burn-attribution.md) and the [generic source-attribution spike](investigations/2026-09-18-generic-attribution-spike.md).
 
-Comment verification: [Osty tanking and Strength-reduction prevention](investigations/2026-09-18-osty-strength-prevention.md).
+Comment verification: [Osty tanking and Strength-reduction prevention](investigations/2026-09-18-osty-strength-prevention.md) and [co-op guests losing their stats when the host re-hosts](investigations/2026-09-22-guest-stats-reset-on-rehost.md).
 
 Later design: [absorb layers](design/specs/2026-09-20-absorb-layers-design.md) — damage a mod's armour stops between block and HP.
 

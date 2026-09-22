@@ -1,3 +1,4 @@
+using System.Reflection;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -152,6 +153,45 @@ internal static class RunEndedPatch
     {
         try { Tracker.OnRunEnded(isVictory, __result); }
         catch (Exception e) { Tracker.LogError("RunManager.OnEnded", e); }
+    }
+}
+
+/// <summary>
+/// The game setting up a brand-new run. Runs before RunStarted, where the tracker decides whether to pick up saved stats.
+/// </summary>
+[HarmonyPatch]
+internal static class NewRunSetUpPatch
+{
+    private static IEnumerable<MethodBase> TargetMethods() =>
+    [
+        AccessTools.Method(typeof(RunManager), nameof(RunManager.SetUpNewSingleplayer)),
+        AccessTools.Method(typeof(RunManager), nameof(RunManager.SetUpNewMultiplayer)),
+    ];
+
+    private static void Prefix()
+    {
+        try { Tracker.OnRunSetUp(saved: false); }
+        catch (Exception e) { Tracker.LogError("new run set-up", e); }
+    }
+}
+
+/// <summary>
+/// The game setting up a run loaded from a save: Continue, or joining a co-op run the host reloaded. A co-op guest
+/// takes this path too, even when the public branch leaves its reload count at 0.
+/// </summary>
+[HarmonyPatch]
+internal static class SavedRunSetUpPatch
+{
+    private static IEnumerable<MethodBase> TargetMethods() =>
+    [
+        AccessTools.Method(typeof(RunManager), nameof(RunManager.SetUpSavedSingleplayer)),
+        AccessTools.Method(typeof(RunManager), nameof(RunManager.SetUpSavedMultiplayer)),
+    ];
+
+    private static void Prefix()
+    {
+        try { Tracker.OnRunSetUp(saved: true); }
+        catch (Exception e) { Tracker.LogError("saved run set-up", e); }
     }
 }
 
