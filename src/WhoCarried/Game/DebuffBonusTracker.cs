@@ -21,7 +21,6 @@ internal static class DebuffBonusTracker
 
     public sealed record PendingHit(decimal Amount, IReadOnlyList<Amplifier> Amplifiers);
 
-    private static readonly Dictionary<Creature, PendingHit> Pending = new(ReferenceEqualityComparer.Instance);
     private static readonly ConditionalWeakTable<PowerModel, StackLedger> Stacks = new();
     private static readonly ConditionalWeakTable<PowerModel, SharedPile> Piles = new();
 
@@ -31,7 +30,7 @@ internal static class DebuffBonusTracker
     /// <summary>Called just before a hit's block is applied, with the hit's final damage.</summary>
     public static void BeforeDamage(Creature target, decimal amount, ValueProp props, Creature? dealer, CardModel? cardSource)
     {
-        Pending.Remove(target);
+        Fight.Now.BoostedHits.Remove(target);
         if (!target.IsEnemy || amount <= 0m) return;
         List<Amplifier>? found = null;
         foreach (PowerModel power in target.Powers.ToList())
@@ -42,7 +41,7 @@ internal static class DebuffBonusTracker
             catch (Exception) { continue; }
             if (multiplier > 1m) (found ??= new List<Amplifier>()).Add(new Amplifier(power, multiplier));
         }
-        if (found != null) Pending[target] = new PendingHit(amount, found);
+        if (found != null) Fight.Now.BoostedHits[target] = new PendingHit(amount, found);
     }
 
     /// <summary>Debuffs on the attacking enemy that shrank this hit (Weak), with their multipliers (below 1).</summary>
@@ -102,15 +101,14 @@ internal static class DebuffBonusTracker
     }
 
     /// <summary>A real hit's damage before modifiers, and what the game's calculation made of it.</summary>
-    private sealed record Calc(Creature? Dealer, ValueProp Props, decimal Damage, decimal Result);
+    internal sealed record Calc(Creature? Dealer, ValueProp Props, decimal Damage, decimal Result);
 
-    private static readonly Dictionary<Creature, Calc> Calcs = new(ReferenceEqualityComparer.Instance);
     private static bool _recalculating;
 
     /// <summary>The game just worked out a real hit's final damage (see <see cref="ModifyDamagePatch"/>).</summary>
     public static void OnDamageCalculated(Creature target, Creature? dealer, decimal damage, ValueProp props, decimal result)
     {
-        if (!_recalculating) Calcs[target] = new Calc(dealer, props, damage, result);
+        if (!_recalculating) Fight.Now.Calcs[target] = new Calc(dealer, props, damage, result);
     }
 
     /// <summary>
@@ -118,7 +116,7 @@ internal static class DebuffBonusTracker
     /// final damage). Removes it. Null if it wasn't seen.
     /// </summary>
     public static decimal? TakeBaseDamage(Creature target, Creature? dealer, decimal amount, ValueProp props) =>
-        Calcs.Remove(target, out Calc? calc) && ReferenceEquals(calc.Dealer, dealer) && calc.Props == props && calc.Result == amount
+        Fight.Now.Calcs.Remove(target, out Calc? calc) && ReferenceEquals(calc.Dealer, dealer) && calc.Props == props && calc.Result == amount
             ? calc.Damage
             : null;
 
@@ -177,13 +175,7 @@ internal static class DebuffBonusTracker
         StrengthLossTies.GetOrCreateValue(enemy).Split(prevented, parts);
 
     /// <summary>The pending hit on this target, if a debuff boosted it. Removes it.</summary>
-    public static PendingHit? Take(Creature target) => Pending.Remove(target, out PendingHit? hit) ? hit : null;
-
-    public static void Clear()
-    {
-        Pending.Clear();
-        Calcs.Clear();
-    }
+    public static PendingHit? Take(Creature target) => Fight.Now.BoostedHits.Remove(target, out PendingHit? hit) ? hit : null;
 
     /// <summary>Stacks landing on an enemy's debuff; <paramref name="player"/> null when no player applied them.</summary>
     public static void AddStacks(PowerModel power, ulong? player, int stacks)

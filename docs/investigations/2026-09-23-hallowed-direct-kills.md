@@ -21,7 +21,7 @@ The game's own Doom kills the same way. Who Carried catches that one with a patc
 Credit any direct kill that some content's **turn-start or turn-end hook** starts:
 
 - The kill command (`CreatureCmd.Kill`, the list overload the single one hands to) now pins the effect running when it starts, the same way the experimental damage attribution pins it for damage (`EffectScopes.EnterKill`). Watching turn hooks and the kill command is on for everyone. Damage attribution stays behind `experimentalEffectSources`.
-- `Tracker.OnDirectKill` counts each killed enemy's remaining HP as that effect's damage. If the enemy carries its own copy of the effect (every judged enemy has its own Hallowed), those stacks split the HP by who applied them. Otherwise the effect itself (a player's power or relic) credits its player.
+- Each killed enemy's remaining HP counts as that effect's damage. `Tracker.OnDirectKill` gathers the facts and `EffectCredit.ForKill` decides, with tests. If the enemy carries its own copy of the effect (every judged enemy has its own Hallowed), those stacks split the HP by who applied them. Otherwise the effect itself (a player's power or relic) credits its player.
 - Nothing is counted for:
   - players and pets
   - Doom, which `OnDoomKill` has already counted
@@ -53,7 +53,7 @@ So on that mod list, Hallowed is the only thing that gains credit. The scan can'
 
 An enemy carrying both converts half its Hallowed into Doom at the end of its turn (`BeforeSideTurnEndVeryEarly`). Zone the Spire names the enemy itself as that Doom's applier. So the converted stacks joined the Doom pile as nobody's, and a Doom kill split its HP among the players who applied Doom directly. In co-op, whoever applied the Hallowed got nothing for them. Solo it made no difference, because a pile's no-player stacks take no part in the split.
 
-**Fix:** stacks that land on an enemy with no player and no card behind them (the enemy itself, or no one, as applier), while *another debuff on that same enemy* is acting in a turn hook, are that debuff handing part of itself on. They belong to whoever owns it, by the same shares: `DebuffBonusTracker.PassOn` for the split, `SharedPile.Add` with several owners to land it, and `Tracker.PassedOn` for the rule. A Doom kill then credits whoever applied the Hallowed.
+**Fix:** stacks that land on an enemy with no player and no card behind them (the enemy itself, or no one, as applier), while *another debuff on that same enemy* is acting in a turn hook, are that debuff handing part of itself on. They belong to whoever owns it, by the same shares: `DebuffBonusTracker.PassOn` for the split, `SharedPile.Add` with several owners to land it, and `EffectCredit.ForHandedOn` for the rule. A Doom kill then credits whoever applied the Hallowed.
 
 - **Not counted as applied.** Converted Doom doesn't count as Doom those players applied on the Debuffs tab: they applied Hallowed, which is already counted. The log line starts `enemy applied …` and ends `passed on from ZONETHESPIRE-HALLOWED_POWER: You 5`, so a replay skips it the same way.
 - **An enemy's own debuff hands nothing on.** If no player owns the debuff that's acting, the stacks stay nobody's, as before.

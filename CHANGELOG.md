@@ -12,6 +12,10 @@
 - An enemy a modded effect kills outright at the start or end of a turn, the way Doom does (Zone the Spire's Hallowed), counts its remaining HP as that effect's damage, shared by who applied the stacks.
 - A debuff that turns part of itself into another (Hallowed into Doom) hands the new stacks to whoever applied it, so a Doom kill credits the Hallowed's players in co-op. They don't count as Doom applied.
 
+### Changed
+
+- Behind the scenes, with no change to the recap: the rules for who gets credit for an outright kill or for converted stacks are covered by automated tests, and everything the mod remembers about a fight is wiped in one step as it starts and ends.
+
 ### Fixed
 
 - Co-op guests no longer lose the recap's earlier fights when the host reloads the run. It hit guests on the game's public branch, the first time a run was reloaded.

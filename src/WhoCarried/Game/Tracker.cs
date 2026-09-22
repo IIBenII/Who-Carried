@@ -102,13 +102,8 @@ internal static class Tracker
     public static void OnCombatStart(IRunState run, ICombatState? combat)
     {
         _run ??= run;
-        DebuffBonusTracker.Clear();
-        AbsorbLayers.Clear();
-        SelfFire.Clear();
+        Fight.Reset();
         EffectSources.NewFight();
-        _doomKilled.Clear();
-        _fightLows.Clear();
-        _fallen.Clear();
         string label = GameReader.EncounterLabel(combat);
         string room = GameReader.RoomType(run);
         _stats.BeginFight(run.CurrentActIndex + 1, run.TotalFloor, label, room);
@@ -380,13 +375,10 @@ internal static class Tracker
             {
                 RecordKill(source.OwnerId, source.Source, hp, creature, "doom kill");
             }
-            _doomKilled.Add(creature);
+            Fight.Now.DoomKilled.Add(creature);
         }
         Touch();
     }
-
-    /// <summary>Enemies whose Doom kill is counted, so the kill command that follows doesn't count them again.</summary>
-    private static readonly HashSet<Creature> _doomKilled = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>
     /// Creatures about to be killed outright, while <paramref name="effect"/>'s turn hook runs (Zone the Spire's
@@ -399,7 +391,7 @@ internal static class Tracker
         foreach (Creature creature in creatures)
         {
             if (creature == null) continue;
-            bool countedAsDoom = _doomKilled.Remove(creature);
+            bool countedAsDoom = Fight.Now.DoomKilled.Remove(creature);
             PowerModel? own = effect is PowerModel power ? creature.Powers.FirstOrDefault(p => p.GetType() == power.GetType()) : null;
             SourceCandidate? source = effect != null ? FactsExtractor.Candidate(own ?? effect) : null;
             var kill = new EffectCredit.Kill(effect != null, creature.IsEnemy, creature.IsAlive, creature.CurrentHp,
@@ -505,40 +497,38 @@ internal static class Tracker
         }
     }
 
-    /// <summary>Each player's lowest HP in the current fight; kept only if they finish the fight standing.</summary>
-    private static readonly Dictionary<ulong, (int Hp, int Max)> _fightLows = new();
-
-    /// <summary>Players who went down in the current fight (a co-op revive afterwards isn't a close call).</summary>
-    private static readonly HashSet<ulong> _fallen = new();
-
     /// <summary>Close calls ("Clutch"): a player's own HP right after a hit, pets excluded.</summary>
     private static void NoteHp(ulong player, int hp, int max)
     {
         if (hp <= 0)
         {
-            _fallen.Add(player);
+            Fight.Now.Fallen.Add(player);
             return;
         }
         if (max <= 0) return;
-        if (!_fightLows.TryGetValue(player, out (int Hp, int Max) low) || (long)hp * low.Max < (long)low.Hp * max)
-            _fightLows[player] = (hp, max);
+        Dictionary<ulong, (int Hp, int Max)> lows = Fight.Now.Lows;
+        if (!lows.TryGetValue(player, out (int Hp, int Max) low) || (long)hp * low.Max < (long)low.Hp * max)
+            lows[player] = (hp, max);
     }
 
-    /// <summary>The fight is over: the lows of everyone still standing count.</summary>
+    /// <summary>
+    /// The fight is over: the lows of everyone still standing count. Used up once counted, since a won run commits the
+    /// last fight's lows before that fight's own end comes.
+    /// </summary>
     private static void CommitFightLows()
     {
-        foreach ((ulong player, (int hp, int max)) in _fightLows)
-            if (!_fallen.Contains(player) && _stats.RecordHp(player, hp, max))
+        Fight fight = Fight.Now;
+        foreach ((ulong player, (int hp, int max)) in fight.Lows)
+            if (!fight.Fallen.Contains(player) && _stats.RecordHp(player, hp, max))
                 _log?.Write($"{Where} {NameOf(player)} hp low {hp}/{max}");
-        _fightLows.Clear();
-        _fallen.Clear();
+        fight.Lows.Clear();
+        fight.Fallen.Clear();
     }
 
     public static void OnCombatEnd(IRunState run)
     {
-        DebuffBonusTracker.Clear();
-        AbsorbLayers.Clear();
         CommitFightLows();
+        Fight.Reset();
         _stats.EndFight();
         Save();
         _log?.Write($"{Where} fight end, saved");

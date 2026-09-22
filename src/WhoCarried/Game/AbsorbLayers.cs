@@ -11,7 +11,7 @@ namespace WhoCarried.Game;
 /// </summary>
 internal static class AbsorbLayers
 {
-    private static readonly AbsorbLedger Ledger = new();
+    private static AbsorbLedger Ledger => Fight.Now.Absorbed;
 
     /// <summary>The game worked out an HP loss: <paramref name="before"/> went in, <paramref name="after"/> came out.</summary>
     /// <param name="modifiers">The models the game says changed it; a layer that keeps quiet isn't in it.</param>
@@ -27,8 +27,6 @@ internal static class AbsorbLayers
 
     /// <summary>A hit on this creature is starting: anything still counted for it is stale.</summary>
     public static void Starting(Creature target) => Ledger.Clear(target);
-
-    public static void Clear() => Ledger.Clear();
 
     /// <summary>
     /// The last model the game was told changed this HP loss, as a hint for the log. Layers that reduce the amount

@@ -23,7 +23,7 @@ internal static class SelfFire
     /// <summary>How long a noted source still counts for its player's next hit.</summary>
     private const ulong WindowMs = 3000;
 
-    private static readonly Dictionary<ulong, (AbstractModel Source, ulong At)> Last = new();
+    private static Dictionary<ulong, (AbstractModel Source, ulong At)> Last => Fight.Now.SelfFired;
 
     /// <summary>What made this player's last unexplained damage call a moment ago; null if nothing recently.</summary>
     public static SourceCandidate? Recent(ulong? player)
@@ -33,8 +33,6 @@ internal static class SelfFire
         try { return FactsExtractor.Candidate(last.Source); }
         catch (Exception) { return null; }
     }
-
-    public static void Clear() => Last.Clear();
 
     /// <summary>A damage command is starting (see <see cref="DamageCommandPatch"/>).</summary>
     public static void OnDamageCommand(PlayerChoiceContext? context, Creature? dealer, bool hasCard)
