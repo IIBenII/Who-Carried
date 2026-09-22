@@ -1,3 +1,4 @@
+using System.Reflection;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Modding;
@@ -10,7 +11,9 @@ namespace WhoCarried;
 [ModInitializer(nameof(Initialize))]
 public static class ModEntry
 {
-    public const string Version = "0.1.0";
+    /// <summary>The manifest's version, which the build stamps on the assembly.</summary>
+    public static readonly string Version =
+        typeof(ModEntry).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
 
     private static readonly Type[] PatchClasses =
     {

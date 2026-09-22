@@ -15,6 +15,7 @@
 - Co-op guests no longer lose the recap's earlier fights when the host reloads the run. It hit guests on the game's public branch, the first time a run was reloaded.
 - Strength-down (Enfeebling Touch, Piercing Wail, Malaise) gets credit for an enemy attack it takes all the way to 0: the attack's own size, not the Strength removed.
 - Changing the hotkey keeps the rest of `settings.json`.
+- `events.log` and the game's log give the mod's real version, not `v0.1.0`.
 
 ## [1.1.0] — 2026-09-17
 
