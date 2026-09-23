@@ -26,6 +26,34 @@ public static class SettingsTests
         Check.Equal<string?>(null, saveError, "save error");
         Check.Equal<string?>(null, loadError, "load error");
         Check.Equal("F9", settings.Hotkey, "hotkey");
+        Check.Equal("", settings.ShareUrl, "share url stays empty");
+    }
+
+    [Test]
+    public static void SavesAndLoadsTheShareUrl()
+    {
+        string dir = NewDir();
+
+        string? saveError = Settings.Save(new Settings { Hotkey = "F8", ShareUrl = "http://localhost:3000" }, dir);
+        (Settings settings, string? loadError) = Settings.Load(dir);
+
+        Check.Equal<string?>(null, saveError, "save error");
+        Check.Equal<string?>(null, loadError, "load error");
+        Check.Equal("http://localhost:3000", settings.ShareUrl, "share url");
+        Check.Equal("F8", settings.Hotkey, "hotkey");
+    }
+
+    [Test]
+    public static void AnOlderSettingsFileHasNoShareUrl()
+    {
+        string dir = NewDir();
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Settings.PathIn(dir), "{ \"hotkey\": \"F8\" }");
+
+        (Settings settings, string? error) = Settings.Load(dir);
+
+        Check.Equal<string?>(null, error, "error");
+        Check.Equal("", settings.ShareUrl, "share url");
     }
 
     [Test]
@@ -118,5 +146,18 @@ public static class SettingsTests
         Check.Equal("F10", rebound.Hotkey, "new key");
         Check.Equal("F8", loaded.Hotkey, "the original is left alone");
         Check.True(Settings.Load(dir).Settings.ExperimentalEffectSources, "still on after a rebind");
+        Check.Equal("", Settings.Load(dir).Settings.ShareUrl, "share url left empty");
+    }
+
+    [Test]
+    public static void ChangingTheHotkeyKeepsTheShareUrl()
+    {
+        string dir = NewDir();
+        Settings.Save(new Settings { Hotkey = "F8", ShareUrl = "http://localhost:3000" }, dir);
+
+        Settings.Save(Settings.Load(dir).Settings.WithHotkey("F10"), dir);
+
+        Check.Equal("F10", Settings.Load(dir).Settings.Hotkey, "new key");
+        Check.Equal("http://localhost:3000", Settings.Load(dir).Settings.ShareUrl, "share url kept");
     }
 }

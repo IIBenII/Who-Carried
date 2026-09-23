@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 
 namespace WhoCarried.Core;
 
@@ -29,6 +30,7 @@ public sealed record DebuffCostRow(string Label, string ColorHex, string? IconKe
 public sealed record DebuffsView(IReadOnlyList<DebuffGroup> Applied, int MoreApplied, IReadOnlyList<DebuffReceivedRow> Received,
                                  IReadOnlyList<DebuffCostRow>? CostRows = null)
 {
+    [JsonIgnore]
     public IReadOnlyList<DebuffCostRow> Costs => CostRows ?? Array.Empty<DebuffCostRow>();
 }
 

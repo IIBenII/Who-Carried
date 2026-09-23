@@ -536,13 +536,14 @@ internal static class Tracker
     }
 
     /// <param name="saved">The run as the game just saved it; the game works out everyone's badges from it.</param>
-    public static void OnRunEnded(bool isVictory, SerializableRun? saved)
+    /// <returns>False when this end is ignored, so a win is not shared again as a defeat.</returns>
+    public static bool OnRunEnded(bool isVictory, SerializableRun? saved)
     {
         // Heart of the Spire ends a won run a second time as a defeat; the game's own history keeps the win.
         if (_stats.Finished && _stats.Victory == true && !isVictory)
         {
             _log?.Write($"{Where} ignored a later \"defeat\" for a run already won");
-            return;
+            return false;
         }
         if (isVictory) CommitFightLows(); // the last fight may end the run before its own end-of-fight
         _stats.EndFight();
@@ -552,6 +553,7 @@ internal static class Tracker
         RecordBadges(isVictory, saved);
         Save();
         Touch();
+        return true;
     }
 
     /// <summary>

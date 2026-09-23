@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using WhoCarried.Localization;
 
 namespace WhoCarried.Core;
@@ -11,11 +12,14 @@ public sealed record BadgeInfo(string Id, string Rarity, string Title, string De
     public const string BasePrefix = "badge-base:";
 
     /// <summary>The badge's own picture.</summary>
+    [JsonIgnore]
     public string IconKey => IconPrefix + Id;
 
     /// <summary>The gold, silver or bronze holder the picture sits in.</summary>
+    [JsonIgnore]
     public string BaseKey => BasePrefix + Rarity;
 
+    [JsonIgnore]
     public int RarityOrder => Rarity switch { "gold" => 0, "silver" => 1, "bronze" => 2, _ => 3 };
 }
 

@@ -9,7 +9,7 @@ using WhoCarried.Localization;
 namespace WhoCarried.UI;
 
 /// <summary>
-/// Owns the overlay: F8 polling, the canvas layer, opening on the end-of-run screen, image export, and keeping the
+/// Owns the overlay: F8 polling, the canvas layer, opening on the end-of-run screen, image export, sharing, and keeping the
 /// open recap live (refreshed in place when the stats change, and every couple of seconds for floor, deck and HP).
 /// </summary>
 internal static class RecapUi
@@ -23,6 +23,7 @@ internal static class RecapUi
     private static CardVisuals? _cards;
     private static bool _hotkeyWasDown;
 
+    private static string? _shareStatus;
     private static Live? _live;
     private static IRunState? _liveRun;
     private static RecapView? _currentView;
@@ -67,6 +68,8 @@ internal static class RecapUi
         if (run == null) return;
         ShowView(BuildView(run), GameReader.WithPowerIcons(id => GameReader.CharacterIcon(run, id)),
             new CardVisuals((playerId, cardId) => GameReader.DeckCardModel(run, playerId, cardId)));
+        if (!Tracker.Stats.Finished) _shareStatus = null;
+        else if (_shareStatus != null) ShowShareStatus(_shareStatus);
         _liveRun = run;
         int generation = _generation;
         IdleTick(generation);
@@ -77,7 +80,8 @@ internal static class RecapUi
         Hide();
         _cards = cards;
         _currentView = view;
-        PanelHandle handle = RecapPanel.Create(view, icons, cards, Hide, h => Export(_currentView ?? view, icons, h));
+        PanelHandle handle = RecapPanel.Create(view, icons, cards, Hide, h => Export(_currentView ?? view, icons, h),
+            h => Share(_currentView ?? view, h));
         _panel = handle.Root;
         _handle = handle;
         _icons = icons;
@@ -188,6 +192,64 @@ internal static class RecapUi
     {
         if (_liveRun == null) return;
         Apply(BuildView(_liveRun));
+    }
+
+    /// <summary>Posts the run that just ended (victory, defeat or abandon) without waiting for the Share button.</summary>
+    public static void ShareEndedRun()
+    {
+        if (Tracker.CurrentRun is not IRunState run)
+        {
+            Tracker.Note("share skipped: no run");
+            return;
+        }
+        _shareStatus = Loc.Text("WHO_CARRIED.share.sharing");
+        ShowShareStatus(_shareStatus);
+        RunShare.Send(Tracker.DataDir, BuildView(run), result =>
+        {
+            _shareStatus = PresentShare(result);
+            ShowShareStatus(_shareStatus);
+        });
+    }
+
+    /// <summary>Posts the recap to the share site and copies the page link.</summary>
+    private static void Share(RecapView view, PanelHandle handle)
+    {
+        handle.Status.Text = Loc.Text("WHO_CARRIED.share.sharing");
+        RunShare.Send(Tracker.DataDir, view, result =>
+        {
+            string text = PresentShare(result);
+            if (GodotObject.IsInstanceValid(handle.Status)) handle.Status.Text = text;
+            Later.Run(12.0, () =>
+            {
+                if (GodotObject.IsInstanceValid(handle.Status)) handle.Status.Text = "";
+            });
+        });
+    }
+
+    private static string PresentShare(string? result)
+    {
+        if (string.IsNullOrEmpty(result) || !result.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            string error = result ?? Loc.Text("WHO_CARRIED.share.failed");
+            Tracker.Note(error);
+            return error;
+        }
+        try
+        {
+            DisplayServer.ClipboardSet(result);
+            Tracker.Note($"shared {result}");
+            return Loc.Text("WHO_CARRIED.share.copied");
+        }
+        catch (Exception e)
+        {
+            Tracker.LogError("clipboard", e);
+            return result;
+        }
+    }
+
+    private static void ShowShareStatus(string text)
+    {
+        if (Open is PanelHandle handle && GodotObject.IsInstanceValid(handle.Status)) handle.Status.Text = text;
     }
 
     /// <summary>

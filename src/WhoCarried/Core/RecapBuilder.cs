@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using WhoCarried.Localization;
 
 namespace WhoCarried.Core;
@@ -13,6 +14,7 @@ public sealed record BarRow(string Label, string SubLabel, int Value, double Fra
                             string? IconKey = null, int Bonus = 0, int BlockRemoved = 0, string Award = "",
                             IReadOnlyList<BadgeInfo>? Badges = null, string? ArtKey = null)
 {
+    [JsonIgnore]
     public IReadOnlyList<BadgeInfo> BadgeList => Badges ?? Array.Empty<BadgeInfo>();
 }
 
@@ -26,9 +28,11 @@ public sealed record SourcesView(string PlayerLabel, IReadOnlyList<BarRow> Rows,
                                  string? IconKey = null, IReadOnlyList<CreatedCard>? Created = null,
                                  IReadOnlyList<KindTotal>? Kinds = null)
 {
+    [JsonIgnore]
     public IReadOnlyList<CreatedCard> CreatedCards => Created ?? Array.Empty<CreatedCard>();
 
     /// <summary>Damage by kind of source, biggest first (every source counted, not just the top few).</summary>
+    [JsonIgnore]
     public IReadOnlyList<KindTotal> KindTotals => Kinds ?? Array.Empty<KindTotal>();
 }
 
@@ -70,9 +74,11 @@ public sealed record RecapView(
     string PreventedNote,
     IReadOnlyList<Award> Awards,
     IReadOnlyList<PlayerBadges>? Badges,
-    RunFacts? Facts = null)
+    RunFacts? Facts = null,
+    string? RunKey = null)
 {
     /// <summary>False while the run is still going: the game hands out badges only when it ends.</summary>
+    [JsonIgnore]
     public bool BadgesKnown => Badges != null;
 }
 
@@ -160,7 +166,8 @@ public static class RecapBuilder
             stats.Finished
                 ? byDamage.Select(p => new PlayerBadges(p.NetId, p.Name, p.ColorHex, IconOf(p), badges[p.NetId])).ToList()
                 : null,
-            facts);
+            facts,
+            string.IsNullOrEmpty(stats.RunKey) ? null : stats.RunKey);
     }
 
     /// <summary>A player's badges with their names, best rarity first (the game's order within a rarity).</summary>

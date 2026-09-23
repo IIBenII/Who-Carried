@@ -151,7 +151,10 @@ internal static class RunEndedPatch
 {
     private static void Postfix(bool isVictory, SerializableRun __result)
     {
-        try { Tracker.OnRunEnded(isVictory, __result); }
+        try
+        {
+            if (Tracker.OnRunEnded(isVictory, __result)) RecapUi.ShareEndedRun();
+        }
         catch (Exception e) { Tracker.LogError("RunManager.OnEnded", e); }
     }
 }

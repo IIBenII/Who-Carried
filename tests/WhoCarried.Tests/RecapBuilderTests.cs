@@ -26,6 +26,9 @@ public static class RecapBuilderTests
         Check.Equal(RecapBuilder.UnattributedLabel, v.Overview[2].Label, "unattributed last");
         Check.True(v.Overview[2].Share == null, "unattributed has no share");
         Check.Equal(RecapBuilder.UnattributedLabel, v.Sources[2].PlayerLabel, "unattributed sources view");
+        Check.True(v.RunKey == null, "no run key until the tracker sets one");
+        s.RunKey = "SEED:1";
+        Check.Equal("SEED:1", RecapBuilder.Build(s, new[] { Alice, Bob }, NoDefense, "h").RunKey, "run key");
     }
 
     [Test]

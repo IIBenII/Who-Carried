@@ -15,7 +15,7 @@ internal sealed record HotkeyLine(Button Cap, Label Text, Label Hint, Action<Hew
 /// controller can do (each view's rows, close, save).
 /// </summary>
 internal sealed record PanelHandle(Control Root, TabContainer Tabs, Label Status, HotkeyLine Hotkey, Live Live, IReadOnlyList<PadTab> Pads,
-                                   Action Close, Action Save);
+                                   Action Close, Action Save, Action Share);
 
 /// <summary>
 /// The full-screen recap in the "Dealt" style: the card table, the game's top bar with the result and the run's
@@ -28,7 +28,7 @@ internal static class RecapPanel
     private static readonly string[] Views = { "WHO_CARRIED.tab.scoreboard", "WHO_CARRIED.tab.awards", "WHO_CARRIED.tab.sources", "WHO_CARRIED.tab.debuffs", "WHO_CARRIED.tab.timeline", "WHO_CARRIED.tab.defense", "WHO_CARRIED.tab.decks" };
 
     public static PanelHandle Create(RecapView view, Func<string?, Texture2D?> icons, CardVisuals? cards,
-                                     Action onClose, Action<PanelHandle> onSave)
+                                     Action onClose, Action<PanelHandle> onSave, Action<PanelHandle> onShare)
     {
         Vector2 screen = ScreenSize();
         float scale = Math.Min(screen.X / DesignW, screen.Y / DesignH);
@@ -48,15 +48,17 @@ internal static class RecapPanel
 
         Label status = k.Text("", 15, RecapTheme.Faint);
         Button save = HewnStone.Slab(k, Loc.Text("WHO_CARRIED.action.save_image"), HewnStone.SlabHeight);
+        Button share = HewnStone.Slab(k, Loc.Text("WHO_CARRIED.action.share_run"), HewnStone.SlabHeight);
         var tabs = new TabContainer { TabsVisible = false, Size = stage.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
         tabs.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
         stage.AddChild(tabs);
         PadTab[] pads = Views.Select(_ => new PadTab()).ToArray();
         PanelHandle? handle = null;
         void Save() => onSave(handle!);
+        void Share() => onShare(handle!);
         var hints = new PadHints();
         Control bar = TopBar(k, view, status, onClose, live, screen.X, stage.Position.X, hints, out HotkeyLine hotkeyLine);
-        handle = new PanelHandle(root, tabs, status, hotkeyLine, live, pads, onClose, Save);
+        handle = new PanelHandle(root, tabs, status, hotkeyLine, live, pads, onClose, Save, Share);
 
         tabs.AddChild(Safe(k, 0, pads[0], () => ScoreboardTab.Create(k, view, live, deal: true, pads[0])));
         tabs.AddChild(Safe(k, 1, pads[1], () => AwardsTab.Create(k, view, live)));
@@ -67,9 +69,10 @@ internal static class RecapPanel
         tabs.AddChild(Safe(k, 6, pads[6], () => DecksTab.Create(k, view, cards, live, pads[6])));
 
         save.Pressed += Save;
+        share.Pressed += Share;
         if (GameCompat.Confirm is StringName confirm) hints.OnButton(save, confirm);
         root.AddChild(bar);
-        stage.AddChild(Nav(k, tabs, hints, save));
+        stage.AddChild(Nav(k, tabs, hints, save, share));
         hints.Attach(root);
         return handle;
     }
@@ -259,7 +262,7 @@ internal static class RecapPanel
     /// The tabs: plain words; the chosen one is white with a gold brush stroke under it, painted in left to right
     /// each time a tab is chosen. Stays in sync when the view is switched from code (dev preview).
     /// </summary>
-    private static Control Nav(Kit k, TabContainer tabs, PadHints hints, Button save)
+    private static Control Nav(Kit k, TabContainer tabs, PadHints hints, Button save, Button share)
     {
         // Where the tabs sit is shared with the scoreboard, whose cards keep clear of them (HandLayout).
         const float top = HandLayout.TabsTop;
@@ -297,6 +300,10 @@ internal static class RecapPanel
         nav.AddChild(HewnStone.Shadow(k, save));
         nav.AddChild(save);
         HewnStone.Lift(save, k);
+        share.Position = new Vector2(save.Position.X + save.Size.X + k.U(12), save.Position.Y);
+        nav.AddChild(HewnStone.Shadow(k, share));
+        nav.AddChild(share);
+        HewnStone.Lift(share, k);
 
         // LB and RB either side of the tabs, in controller mode only.
         float glyphY = (HandLayout.TabsBottom - top - 28) / 2;

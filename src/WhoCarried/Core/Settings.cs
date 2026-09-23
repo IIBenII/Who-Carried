@@ -14,6 +14,10 @@ public sealed class Settings
     [JsonPropertyName("hotkey")]
     public string Hotkey { get; set; } = DefaultHotkey;
 
+    /// <summary>Origin of the share site, such as "http://localhost:3000". Empty until the player sets it.</summary>
+    [JsonPropertyName("shareUrl")]
+    public string ShareUrl { get; set; } = "";
+
     /// <summary>
     /// Credits damage that arrives with no dealer and no card (a modded power ticking at the start of a turn) to the
     /// effect that was running when it started. Experimental, so off unless set by hand; read at start-up.
@@ -41,6 +45,7 @@ public sealed class Settings
             Settings? saved = JsonSerializer.Deserialize(File.ReadAllText(path), WhoCarriedJson.Default.Settings);
             if (saved == null) return (new Settings(), "settings.json was empty");
             if (saved.Hotkey == null) return (new Settings(), "settings.json has a null hotkey");
+            saved.ShareUrl ??= "";
             return (saved, null);
         }
         catch (Exception e)
