@@ -122,6 +122,7 @@
   "WHO_CARRIED.summary.bonus_note": "Bonus damage is the extra damage teammates dealt thanks to your {0}.",
   "WHO_CARRIED.summary.closest": "Closest call: {0} HP left of {1}.",
   "WHO_CARRIED.summary.credit": "{0} · a Slay the Spire 2 mod",
+  "WHO_CARRIED.summary.date": "{0:d MMMM yyyy}",
   "WHO_CARRIED.summary.fight_act": "{0} · Act {1}",
   "WHO_CARRIED.summary.fight_one": "1 fight",
   "WHO_CARRIED.summary.fights": "{0} fights",

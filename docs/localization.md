@@ -1,8 +1,13 @@
 # Localization
 
 Who Carried uses the game's selected language. The default catalogs are
-`src/WhoCarried/Localization/eng.json` and `zhs.json`; each contains 149 keys.
+`src/WhoCarried/Localization/eng.json` and `zhs.json`, with the same keys.
 No language preference or language switcher is added to the mod.
+
+**Simplified Chinese is kept complete.** A change that adds or rewords on-screen
+English updates `zhs.json` in the same change, using the game's own Chinese terms
+where they exist (格挡, 遗物, 充能球, 召唤物, 幕, 层). The tests fail while the two
+catalogs' keys differ.
 
 ## Runtime and packaging
 
@@ -58,27 +63,27 @@ historical data or invent translations for missing third-party models.
 1. Add `<game-language-code>.json` beside `eng.json`, e.g. `zht.json`, `jpn.json`
    or `kor.json`. Use an existing game language code.
 2. Copy keys from English, translate complete templates and retain their argument
-   indexes and numeric formats. Partial catalogs intentionally fall back to English.
-3. Run `python3 tools/check-localization.py`, then the tests and build below.
+   indexes and numeric formats. A catalog other than Simplified Chinese may be
+   partial: missing entries fall back to English.
+3. Run the tests and build below.
 4. Test via Steam and compare the in-game UI with the exported image.
 
 ## Verification commands
 
 ```sh
-python3 tools/check-localization.py
 dotnet run --project tests/WhoCarried.Tests -c Release
 dotnet build src/WhoCarried/WhoCarried.csproj -c Release -p:GameData="<directory containing sts2.dll>"
 ```
 
-The console test runner (not `dotnet test`) runs the existing Core suite and the
-localization tests. Catalog validation checks duplicate/unknown/unused keys,
-eng/zhs parity and placeholder parity; C# tests check actual format parsing,
-missing/empty/broken translations, unavailable lookup, visible last-resort
-fallback and Chinese argument reordering.
+The console test runner (not `dotnet test`) runs the Core suite and the
+localization tests. They check that every key the code uses is in `eng.json` and
+none is left unused, that no catalog lists a key twice, eng/zhs parity and
+placeholder parity, actual format parsing, missing/empty/broken translations,
+unavailable lookup, visible last-resort fallback and Chinese argument reordering.
 
 API inspection and compilation were performed against the locally installed
-STS2 v0.111.0 (`41cef1ea`, arm64). The manifest's existing minimum version is
-unchanged; compatibility with v0.107.1 still needs testing against that version.
+STS2 v0.111.0 (`41cef1ea`, arm64). It also builds against v0.107.1; the
+manifest's existing minimum version is unchanged.
 
 ## Steam preview checklist
 

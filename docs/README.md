@@ -6,6 +6,8 @@ Comment verification: [Osty tanking and Strength-reduction prevention](investiga
 
 [Zone the Spire's Hallowed getting no credit for its kills](investigations/2026-09-23-hallowed-direct-kills.md), and what else crediting direct kills touches.
 
+[Localization](localization.md): how the recap follows the game's language, and keeping Simplified Chinese complete.
+
 Later design: [absorb layers](design/specs/2026-09-20-absorb-layers-design.md) — damage a mod's armour stops between block and HP.
 
 The specs and plans the mod was built from, in the order they were written (September 2026). They're a record of how it got here, so they aren't updated as the code changes.

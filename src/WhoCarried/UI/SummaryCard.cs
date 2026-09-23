@@ -125,7 +125,7 @@ internal static class SummaryCard
         Stat(GameArt.Get(GameArt.Ascension), (view.Facts?.Ascension ?? 0) > 0 ? view.Facts!.Ascension.ToString(CultureInfo.InvariantCulture) : "");
         Stat(GameArt.Get(GameArt.Swords), Kit.Num(RecapTexts.TeamDamage(view)));
         row.AddChild(Kit.Fill());
-        row.AddChild(Kit.Center(k.Text(date.ToString("d", Loc.Culture), 16, RecapTheme.Muted)));
+        row.AddChild(Kit.Center(k.Text(Loc.Text("WHO_CARRIED.summary.date", date), 16, RecapTheme.Muted)));
         return bar;
     }
 
