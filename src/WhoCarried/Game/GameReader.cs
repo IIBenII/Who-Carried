@@ -11,6 +11,7 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Platform;
 using MegaCrit.Sts2.Core.Runs;
 using WhoCarried.Core;
+using WhoCarried.Localization;
 
 namespace WhoCarried.Game;
 
@@ -288,9 +289,9 @@ internal static class GameReader
     /// <summary>The result chip next to the title: "Defeat on floor 37", "Victory on floor 49", "Act 2, floor 17".</summary>
     public static string Header(IRunState run, bool? victory) => victory switch
     {
-        true => $"Victory on floor {run.TotalFloor}",
-        false => $"Defeat on floor {run.TotalFloor}",
-        null => $"Act {run.CurrentActIndex + 1}, floor {run.TotalFloor}",
+        true => Loc.Text("WHO_CARRIED.result.victory_floor", run.TotalFloor),
+        false => Loc.Text("WHO_CARRIED.result.defeat_floor", run.TotalFloor),
+        null => Loc.Text("WHO_CARRIED.result.progress", run.CurrentActIndex + 1, run.TotalFloor),
     };
 
     /// <summary>The map room the party is in, for the fight icons: "monster", "elite", "boss", "unknown" (event), or "".</summary>
@@ -322,13 +323,13 @@ internal static class GameReader
         string seed = "";
         try { seed = run.Rng.StringSeed; }
         catch (Exception) { /* no seed */ }
-        return new RunFacts(run.TotalFloor, run.AscensionLevel, seconds, seed);
+        return new RunFacts(run.TotalFloor, run.AscensionLevel, seconds, seed, run.CurrentActIndex + 1);
     }
 
     public static string EncounterLabel(ICombatState? combat)
     {
         EncounterModel? encounter = combat?.Encounter;
-        return encounter == null ? "Fight" : GameText.Title(encounter.Title, encounter.Id.Entry);
+        return encounter == null ? Loc.Text("WHO_CARRIED.fallback.fight") : GameText.Title(encounter.Title, encounter.Id.Entry);
     }
 
     /// <summary>
@@ -349,6 +350,6 @@ internal static class GameReader
         {
             // fall through
         }
-        return playerCount == 1 ? "You" : $"Player {index + 1}";
+        return playerCount == 1 ? Loc.Text("WHO_CARRIED.fallback.you") : Loc.Text("WHO_CARRIED.fallback.player", index + 1);
     }
 }

@@ -1,5 +1,7 @@
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -45,7 +47,7 @@ internal static class SourcesTab
         if (count == 1) grid.AddChild(Breakdown(k, view, colW, live));
 
         HBoxContainer legend = k.Row(22);
-        foreach ((Color color, string text) in new[] { (RecapTheme.Attack, "Attack card"), (RecapTheme.Power, "Power or orb"), (RecapTheme.Relic, "Relic"), (RecapTheme.Plain, "Everything else") })
+        foreach ((Color color, string text) in new[] { (RecapTheme.Attack, GameText.CardType("Attack")), (RecapTheme.Power, Loc.Text("WHO_CARRIED.sources.power_or_orb")), (RecapTheme.Relic, GameText.Relic), (RecapTheme.Plain, Loc.Text("WHO_CARRIED.sources.other")) })
         {
             HBoxContainer item = k.Row(7);
             var ring = new Panel { CustomMinimumSize = k.V(14, 14), MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -54,7 +56,7 @@ internal static class SourcesTab
             item.AddChild(Kit.Center(k.Text(text, 14, RecapTheme.Muted)));
             legend.AddChild(item);
         }
-        Label pets = k.Text("· A pet's hits show the card that sent it in.", 14, RecapTheme.Muted);
+        Label pets = k.Text(Loc.Text("WHO_CARRIED.sources.pet_hint"), 14, RecapTheme.Muted);
         legend.AddChild(Kit.Center(pets));
         void Pets(RecapView v) => pets.Visible = v.Sources.Any(s => s.Rows.Any(r => r.SubLabel == nameof(SourceKind.Pet)));
         Pets(view);
@@ -91,12 +93,12 @@ internal static class SourcesTab
         header.AddChild(gem);
         column.AddChild(header);
 
-        Label none = k.Text("No damage recorded yet.", 16, RecapTheme.Muted);
+        Label none = k.Text(Loc.Text("WHO_CARRIED.empty.sources"), 16, RecapTheme.Muted);
         column.AddChild(none);
 
         VBoxContainer created = k.Column(3);
         created.AddChild(k.Gap(0, 12));
-        created.AddChild(k.Caps("Cards created", 12, RecapTheme.Muted, 1.5f, bold: true));
+        created.AddChild(k.Caps(Loc.Text("WHO_CARRIED.sources.created"), 12, RecapTheme.Muted, 1.5f, bold: true));
         Label createdList = k.Text("", 15, RecapTheme.Text);
         createdList.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         createdList.CustomMinimumSize = k.V(width, 0);
@@ -127,12 +129,12 @@ internal static class SourcesTab
         VBoxContainer box = k.Column(12);
         box.CustomMinimumSize = k.V(width, 0);
         box.AddChild(k.Gap(0, 14));
-        box.AddChild(k.Heading("Where it came from", GameArt.Get(GameArt.Swords), "every hit, by kind"));
+        box.AddChild(k.Heading(Loc.Text("WHO_CARRIED.sources.heading"), GameArt.Get(GameArt.Swords), Loc.Text("WHO_CARRIED.sources.heading_hint")));
         PanelContainer tip = k.Tip(18, 12);
         VBoxContainer list = k.Column(0);
         tip.AddChild(list);
         box.AddChild(tip);
-        Label none = k.Text("No damage recorded yet.", 16, RecapTheme.Muted);
+        Label none = k.Text(Loc.Text("WHO_CARRIED.empty.sources"), 16, RecapTheme.Muted);
         list.AddChild(none);
 
         (Control, Action<(KindTotal Kind, int Total)>) Line((KindTotal Kind, int Total) item)
@@ -167,7 +169,7 @@ internal static class SourcesTab
             void Apply((KindTotal Kind, int Total) it)
             {
                 KindTotal kt = it.Kind;
-                detail.Text = kt.Sources == 1 ? kt.TopLabel : $"{kt.TopLabel} and {kt.Sources - 1} more";
+                detail.Text = kt.Sources == 1 ? kt.TopLabel : Loc.Text("WHO_CARRIED.sources.more", kt.TopLabel, kt.Sources - 1);
                 value.Set(kt.Amount);
                 double fraction = (double)kt.Amount / Math.Max(1, it.Total);
                 share.Text = $"{Math.Round(fraction * 100):0}%";
@@ -192,13 +194,13 @@ internal static class SourcesTab
 
     private static string KindName(string kind) => kind switch
     {
-        "Card" => "Cards",
-        "Orb" => "Orbs",
-        "Power" => "Powers and debuffs",
-        "Relic" => "Relics",
-        "Potion" => "Potions",
-        "Pet" => "Pets",
-        _ => "Everything else",
+        "Card" => Loc.Text("WHO_CARRIED.sources.cards"),
+        "Orb" => Loc.Text("WHO_CARRIED.sources.orbs"),
+        "Power" => Loc.Text("WHO_CARRIED.sources.powers"),
+        "Relic" => Loc.Text("WHO_CARRIED.sources.relics"),
+        "Potion" => Loc.Text("WHO_CARRIED.sources.potions"),
+        "Pet" => Loc.Text("WHO_CARRIED.sources.pets"),
+        _ => Loc.Text("WHO_CARRIED.sources.other"),
     };
 
     private static (Control, Action<(BarRow Row, int Max)>) Row(Kit k, (BarRow Row, int Max) item, float width, Color accent)
@@ -214,7 +216,7 @@ internal static class SourcesTab
         VBoxContainer words = k.Column(4);
         words.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         HBoxContainer top = k.Row(6);
-        Label label = k.Text(row.Label, 17, other ? RecapTheme.Muted : RecapTheme.Text);
+        Label label = k.Text(RecapTexts.SourceLabel(row), 17, other ? RecapTheme.Muted : RecapTheme.Text);
         label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         top.AddChild(Kit.Center(label));
@@ -233,10 +235,10 @@ internal static class SourcesTab
 
         void Apply((BarRow Row, int Max) it)
         {
-            label.Text = it.Row.Label;
+            label.Text = RecapTexts.SourceLabel(it.Row);
             value.Set(it.Row.Value);
             bar.Set((double)it.Row.Value / Math.Max(1, it.Max));
-            block.Text = it.Row.BlockRemoved > 0 ? $"{Kit.Num(it.Row.BlockRemoved)} block" : "";
+            block.Text = it.Row.BlockRemoved > 0 ? Loc.Text("WHO_CARRIED.stat.block_amount", Kit.Num(it.Row.BlockRemoved), GameText.Block) : "";
         }
         Apply(item);
         return (line, Apply);

@@ -1,5 +1,6 @@
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -14,7 +15,7 @@ internal static class AwardsTab
         Control tab = k.Box(RecapPanel.DesignW, RecapPanel.DesignH);
         Control spread = k.At(k.Box(1130, 640), 40, 146);
         tab.AddChild(spread);
-        Label empty = k.Text("No awards yet. They fill in as the run goes.", 18, RecapTheme.Muted);
+        Label empty = k.Text(Loc.Text("WHO_CARRIED.empty.awards"), 18, RecapTheme.Muted);
         spread.AddChild(empty);
 
         var cards = new Dictionary<string, (CardFace Face, Label Value, Label Detail)>();
@@ -66,7 +67,7 @@ internal static class AwardsTab
     public static (CardFace Face, Label Value, Label Detail) AwardCard(Kit k, Award award, float width)
     {
         Color color = RecapTheme.FromHex(award.ColorHex);
-        var face = new CardFace(k, new CardSpec(width, color, award.Title, Art: RecapTexts.AwardArt(k, award.Title),
+        var face = new CardFace(k, new CardSpec(width, color, Loc.Text(award.Title), Art: RecapTexts.AwardArt(k, award.Title),
             Gem: k.Icon(RecapTexts.EnergyKey(award.IconKey)), GemFace: k.Icon(award.IconKey), Plaque: award.PlayerName));
         float em = face.Em;
         Label value = k.Strong(award.Value, em * 2.8f);
@@ -88,7 +89,7 @@ internal static class AwardsTab
     public static Control Relics(Kit k, RecapView view, float width, bool full, Live? live)
     {
         VBoxContainer box = k.Column(10);
-        box.AddChild(k.Heading("Relics of the run", GameArt.Get(GameArt.Achievements), "the game's badges", full ? 22 : 26));
+        box.AddChild(k.Heading(Loc.Text("WHO_CARRIED.awards.badges"), GameArt.Get(GameArt.Achievements), Loc.Text("WHO_CARRIED.awards.badges_hint"), full ? 22 : 26));
         VBoxContainer body = k.Column(10);
         box.AddChild(body);
         string shown = "";
@@ -101,7 +102,7 @@ internal static class AwardsTab
             column.AddChild(k.Who(p.Name, p.IconKey, color));
             if (p.Badges.Count == 0)
             {
-                column.AddChild(k.Text("No badges this run", 15, RecapTheme.Faint));
+                column.AddChild(k.Text(Loc.Text("WHO_CARRIED.empty.badges"), 15, RecapTheme.Faint));
             }
             else
             {
@@ -134,7 +135,7 @@ internal static class AwardsTab
             }
             if (v.Badges == null)
             {
-                Label wait = k.Text("The game hands out its badges when the run ends.", 16, RecapTheme.Muted);
+                Label wait = k.Text(Loc.Text("WHO_CARRIED.awards.wait"), 16, RecapTheme.Muted);
                 wait.AutowrapMode = TextServer.AutowrapMode.WordSmart;
                 wait.CustomMinimumSize = k.V(width, 0);
                 body.AddChild(wait);

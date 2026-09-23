@@ -4,6 +4,8 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using WhoCarried.Core;
 using WhoCarried.Game;
+using MegaCrit.Sts2.Core.Localization;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -33,6 +35,10 @@ internal static class DevPreview
         string wanted = "";
         try { wanted = File.ReadAllText(Path.Combine(dataDir, "preview.flag")).Trim(); }
         catch (Exception) { }
+        string[] options = wanted.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        wanted = options.FirstOrDefault() ?? "";
+        if (options.Length > 1 && LocManager.Languages.Contains(options[1]))
+            LocManager.Instance.SetLanguage(options[1]);
         CharacterModel[] all = ModelDb.AllCharacters.ToArray();
         CharacterModel[] characters;
         if (wanted.StartsWith('m') && int.TryParse(wanted[1..], out int page))
@@ -314,20 +320,20 @@ internal static class DevPreview
         PlayerInfo P(int i) => players[i % players.Count];
         var stats = new RunStats();
         var rng = new Random(7);
-        SourceRef vulnerable = Debuff("VULNERABLE_POWER", "Vulnerable");
-        SourceRef weak = Debuff("WEAK_POWER", "Weak");
-        SourceRef poison = Debuff("POISON_POWER", "Poison");
-        SourceRef doom = Debuff("DOOM_POWER", "Doom");
-        SourceRef frail = Debuff("FRAIL_POWER", "Frail");
-        SourceRef piercingWail = Debuff("PIERCING_WAIL_POWER", "Piercing Wail");
-        var shiv = new SourceRef(SourceKind.Card, "SHIV", "Shiv");
+        SourceRef vulnerable = Debuff("VULNERABLE_POWER", GameText.Native("powers", "VULNERABLE_POWER.title", "VULNERABLE_POWER"));
+        SourceRef weak = Debuff("WEAK_POWER", GameText.Native("powers", "WEAK_POWER.title", "WEAK_POWER"));
+        SourceRef poison = Debuff("POISON_POWER", GameText.Native("powers", "POISON_POWER.title", "POISON_POWER"));
+        SourceRef doom = Debuff("DOOM_POWER", GameText.Native("powers", "DOOM_POWER.title", "DOOM_POWER"));
+        SourceRef frail = Debuff("FRAIL_POWER", GameText.Native("powers", "FRAIL_POWER.title", "FRAIL_POWER"));
+        SourceRef piercingWail = Debuff("PIERCING_WAIL_POWER", GameText.Native("powers", "PIERCING_WAIL_POWER.title", "PIERCING_WAIL_POWER"));
+        var shiv = new SourceRef(SourceKind.Card, "SHIV", GameText.Native("cards", "SHIV.title", "SHIV"));
         int floor = 1;
         for (int act = 1; act <= 3; act++)
         {
             for (int fight = 0; fight < 5; fight++, floor += 3)
             {
                 string room = fight == 4 ? "boss" : fight == 2 ? "elite" : fight == 1 && act == 2 ? "unknown" : "monster";
-                stats.BeginFight(act, floor, fight == 4 ? "Boss" : fight == 2 ? "Elite fight" : "Hallway fight", room);
+                stats.BeginFight(act, floor, fight == 4 ? Loc.Text("WHO_CARRIED.preview.boss") : fight == 2 ? Loc.Text("WHO_CARRIED.preview.elite") : Loc.Text("WHO_CARRIED.preview.normal"), room);
                 foreach (PlayerInfo p in players)
                 {
                     List<CardModel> attacks = deckModels[p.NetId].Where(card => card.Type == CardType.Attack).ToList();
@@ -340,13 +346,13 @@ internal static class DevPreview
                     }
                     stats.RecordBlocked(p.NetId, rng.Next(10, 40) * act);
                 }
-                stats.RecordDamage(P(1).NetId, new SourceRef(SourceKind.Power, "POISON_POWER", "Poison"),
+                stats.RecordDamage(P(1).NetId, new SourceRef(SourceKind.Power, "POISON_POWER", GameText.Native("powers", "POISON_POWER.title", "POISON_POWER")),
                     rng.Next(10, 40) * act);
                 if (fight % 2 == 1)
-                    stats.RecordDamage(P(2).NetId, new SourceRef(SourceKind.Power, "DOOM_POWER", "Doom"),
+                    stats.RecordDamage(P(2).NetId, new SourceRef(SourceKind.Power, "DOOM_POWER", GameText.Native("powers", "DOOM_POWER.title", "DOOM_POWER")),
                         rng.Next(20, 60) * act);
                 stats.RecordPetTanked(P(2).NetId, rng.Next(0, 12) * act); // Osty soaking hits
-                stats.RecordDamage(P(3).NetId, new SourceRef(SourceKind.Orb, "LIGHTNING_ORB", "Lightning"), rng.Next(6, 24) * act);
+                stats.RecordDamage(P(3).NetId, new SourceRef(SourceKind.Orb, "LIGHTNING_ORB", GameText.Native("orbs", "LIGHTNING_ORB.title", "LIGHTNING_ORB")), rng.Next(6, 24) * act);
 
                 stats.RecordDebuffApplied(P(0).NetId, vulnerable, rng.Next(2, 5));
                 stats.RecordDebuffApplied(P(0).NetId, weak, rng.Next(0, 2));
@@ -378,7 +384,7 @@ internal static class DevPreview
                 stats.RecordDebuffApplied(P(1).NetId, piercingWail, 6);
                 stats.RecordDebuffPrevented(P(1).NetId, piercingWail, rng.Next(4, 14) * act);
                 stats.RecordCardCreated(P(1).NetId, shiv, rng.Next(2, 6));
-                if (fight % 2 == 0) stats.RecordCardCreated(P(2).NetId, new SourceRef(SourceKind.Card, "SOVEREIGN_BLADE", "Sovereign Blade"));
+                if (fight % 2 == 0) stats.RecordCardCreated(P(2).NetId, new SourceRef(SourceKind.Card, "SOVEREIGN_BLADE", GameText.Native("cards", "SOVEREIGN_BLADE.title", "SOVEREIGN_BLADE")));
                 stats.EndFight();
             }
         }
@@ -397,7 +403,7 @@ internal static class DevPreview
             p => p.NetId, _ => new DefenseTotals(rng.Next(150, 400), rng.Next(60, 200)));
         Dictionary<ulong, IReadOnlyList<DeckCard>> decks = deckModels.ToDictionary(
             kv => kv.Key, kv => GameReader.DeckFacts(kv.Value));
-        RecapView view = RecapBuilder.Build(stats, players, defense, "Victory on floor 43", victory: true, decks: decks,
+        RecapView view = RecapBuilder.Build(stats, players, defense, Loc.Text("WHO_CARRIED.result.victory_floor", 43), victory: true, decks: decks,
             badgeText: GameReader.BadgeText, facts: new RunFacts(43, 6, 4899, "3YKUYH5798ZF"));
 
         Func<string?, Texture2D?> icons = GameReader.WithPowerIcons(id =>
@@ -407,18 +413,18 @@ internal static class DevPreview
 
         RecapView Advance()
         {
-            stats.BeginFight(4, 50, "Corrupt Heart", "boss");
+            stats.BeginFight(4, 50, Loc.Text("WHO_CARRIED.preview.final"), "boss");
             CardModel? attack = deckModels[P(0).NetId].FirstOrDefault(card => card.Type == CardType.Attack);
             if (attack != null)
                 stats.RecordDamage(P(0).NetId, new SourceRef(SourceKind.Card, attack.Id.Entry,
                     GameText.Title(attack.TitleLocString, attack.Id.Entry)), 1500);
-            stats.RecordDamage(P(1).NetId, new SourceRef(SourceKind.Power, "POISON_POWER", "Poison"), 380);
-            stats.RecordDamage(P(2).NetId, new SourceRef(SourceKind.Power, "DOOM_POWER", "Doom"), 420);
+            stats.RecordDamage(P(1).NetId, new SourceRef(SourceKind.Power, "POISON_POWER", GameText.Native("powers", "POISON_POWER.title", "POISON_POWER")), 380);
+            stats.RecordDamage(P(2).NetId, new SourceRef(SourceKind.Power, "DOOM_POWER", GameText.Native("powers", "DOOM_POWER.title", "DOOM_POWER")), 420);
             stats.RecordDebuffApplied(P(2).NetId, weak, 6);
             stats.RecordDebuffPrevented(P(2).NetId, weak, 90);
             stats.RecordDebuffBonus(P(0).NetId, vulnerable, 120);
             stats.EndFight();
-            return RecapBuilder.Build(stats, players, defense, "Victory on floor 50", victory: true, decks: decks,
+            return RecapBuilder.Build(stats, players, defense, Loc.Text("WHO_CARRIED.result.victory_floor", 50), victory: true, decks: decks,
                 badgeText: GameReader.BadgeText, facts: new RunFacts(50, 6, 5320, "3YKUYH5798ZF"));
         }
 

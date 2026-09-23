@@ -1,5 +1,6 @@
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -22,11 +23,11 @@ internal static class DebuffsTab
         VBoxContainer content = k.Column(14);
         content.CustomMinimumSize = k.V(1522, 0);
         scroll.AddChild(content);
-        content.AddChild(k.Heading("Applied to enemies", k.Icon(DebuffBuilder.IconPrefix + "VULNERABLE_POWER"),
-            "who stacked what, and what it did for the team"));
+        content.AddChild(k.Heading(Loc.Text("WHO_CARRIED.debuffs.applied"), k.Icon(DebuffBuilder.IconPrefix + "VULNERABLE_POWER"),
+            Loc.Text("WHO_CARRIED.debuffs.hint")));
         content.AddChild(Applied(k, view, 1522, 3, live));
         // What enemy debuffs cost you: left out while nobody has paid anything (and for runs logged before it was tracked).
-        Control gap = k.Gap(0, 8), heading = k.Heading("What enemy debuffs cost you", k.Icon(DebuffBuilder.IconPrefix + "FRAIL_POWER")),
+        Control gap = k.Gap(0, 8), heading = k.Heading(Loc.Text("WHO_CARRIED.debuffs.cost"), k.Icon(DebuffBuilder.IconPrefix + "FRAIL_POWER")),
             costs = Costs(k, view, 1522, live);
         foreach (Control part in new[] { gap, heading, costs }) content.AddChild(part);
         void Show(RecapView v)
@@ -45,7 +46,7 @@ internal static class DebuffsTab
         VBoxContainer holder = k.Column(0);
         HBoxContainer row = k.Row(18);
         holder.AddChild(row);
-        Label empty = k.Text("No debuffs applied yet.", 16, RecapTheme.Muted);
+        Label empty = k.Text(Loc.Text("WHO_CARRIED.empty.debuffs"), 16, RecapTheme.Muted);
         holder.AddChild(empty);
         float colW = (width - 18 * (columns - 1)) / columns;
         string shown = "";
@@ -111,9 +112,9 @@ internal static class DebuffsTab
         title.AddChild(Kit.Center(stacks));
         column.AddChild(title);
 
-        (Control bonusLine, Label bonus) = Sentence(k, "Teammates dealt ", RecapTheme.Gold, " extra damage because of it.");
+        (Control bonusLine, Label bonus) = Sentence(k, RecapTheme.Gold);
         column.AddChild(bonusLine);
-        (Control keptLine, Label kept) = Sentence(k, "Kept ", RecapTheme.Teal, " damage off the team.");
+        (Control keptLine, Label kept) = Sentence(k, RecapTheme.Teal);
         column.AddChild(keptLine);
 
         var bars = new List<(LiveNumber Amount, LiveBar Bar, Label Extra)>();
@@ -144,10 +145,10 @@ internal static class DebuffsTab
 
         void Update(DebuffGroup g)
         {
-            stacks.Text = $"{Kit.Num(g.Total)} stacks";
-            bonus.Text = $"+{Kit.Num(g.BonusTotal)}";
+            stacks.Text = Loc.Text("WHO_CARRIED.debuffs.stacks", Kit.Num(g.Total));
+            bonus.Text = Loc.Text("WHO_CARRIED.debuffs.bonus_sentence", Kit.Num(g.BonusTotal));
             bonusLine.Visible = g.BonusTotal > 0;
-            kept.Text = Kit.Num(g.PreventedTotal);
+            kept.Text = Loc.Text("WHO_CARRIED.debuffs.prevented_sentence", Kit.Num(g.PreventedTotal));
             keptLine.Visible = g.PreventedTotal > 0;
             for (int i = 0; i < g.Bars.Count && i < bars.Count; i++)
             {
@@ -166,14 +167,11 @@ internal static class DebuffsTab
     }
 
     /// <summary>"Teammates dealt +2,670 extra damage because of it.", with the number picked out.</summary>
-    private static (Control Line, Label Number) Sentence(Kit k, string before, Color tone, string after)
+    private static (Control Line, Label Number) Sentence(Kit k, Color tone)
     {
         HBoxContainer line = k.Row(0);
-        var tint = new Color("dfe4ea");
-        line.AddChild(k.Text(before, 15, tint));
         Label number = k.Text("", 15, tone, true);
         line.AddChild(number);
-        line.AddChild(k.Text(after, 15, tint));
         return (line, number);
     }
 
@@ -191,16 +189,16 @@ internal static class DebuffsTab
             debuff.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             debuff.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             line.AddChild(Kit.Center(debuff));
-            (string suffix, Color tone) = l.Effect switch
+            (string key, Color tone) = l.Effect switch
             {
-                RunStats.CostTaken => ("extra damage taken", RecapTheme.Taken),
-                RunStats.CostDealt => ("less damage dealt", RecapTheme.Gold),
-                RunStats.CostBlock => ("less block", RecapTheme.Blocked),
+                RunStats.CostTaken => ("WHO_CARRIED.debuffs.extra_taken", RecapTheme.Taken),
+                RunStats.CostDealt => ("WHO_CARRIED.debuffs.less_dealt", RecapTheme.Gold),
+                RunStats.CostBlock => ("WHO_CARRIED.debuffs.less_block", RecapTheme.Blocked),
                 _ => ("", RecapTheme.Text),
             };
-            var amount = new LiveNumber(k.Text("", 17, tone, true), l.Amount);
+            var amount = new LiveNumber(k.Text("", 17, tone, true), l.Amount,
+                format: value => key.Length == 0 ? Kit.Num(value) : Loc.Text(key, Kit.Num(value)));
             line.AddChild(Kit.Center(amount.Control));
-            line.AddChild(Kit.Center(k.Text(suffix, 14, RecapTheme.Muted)));
             return (line, it => amount.Set(it.Amount));
         }
 
@@ -211,7 +209,7 @@ internal static class DebuffsTab
             tip.CustomMinimumSize = k.V(cardW, 0);
             VBoxContainer column = k.Column(2);
             column.AddChild(k.Who(r.Label, r.IconKey, color));
-            Label none = k.Text("Nothing yet", 14, RecapTheme.Faint);
+            Label none = k.Text(Loc.Text("WHO_CARRIED.empty.cost"), 14, RecapTheme.Faint);
             column.AddChild(none);
             tip.AddChild(column);
             var lines = new KeyedRows<CostLine>(column, l => $"{l.Effect}:{l.Debuff}", Line, offset: 2);

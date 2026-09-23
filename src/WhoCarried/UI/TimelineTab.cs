@@ -1,6 +1,7 @@
 using Godot;
 using WhoCarried.Core;
 using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -26,7 +27,7 @@ internal static class TimelineTab
     {
         Control tab = k.Box(RecapPanel.DesignW, RecapPanel.DesignH);
         tab.AddChild(k.At(Legend(k, view, live), 40, 140));
-        Label empty = k.Text("No fights recorded yet. The chart fills in as you go.", 18, RecapTheme.Muted);
+        Label empty = k.Text(Loc.Text("WHO_CARRIED.empty.timeline"), 18, RecapTheme.Muted);
         tab.AddChild(k.At(empty, 40, 190));
         PanelContainer frame = k.Tip(12, 10, alpha: 0.55f);
         frame.AddChild(Chart(k, view, ChartW, ChartH, interactive: true, live, visible => { frame.Visible = visible; empty.Visible = !visible; }, pad));
@@ -110,13 +111,13 @@ internal static class TimelineTab
                 if (regular != null)
                     chart.DrawString(regular, k.V(0, y + 5), Kit.Num((long)Math.Round(value)), HorizontalAlignment.Right, k.U(left - 10), k.F(14), RecapTheme.Faint);
             }
-            if (bold != null) chart.DrawString(bold, k.V(left + 8, 16), $"Act {current.FightPoints[0].Act}", HorizontalAlignment.Left, -1, k.F(14), RecapTheme.Gold);
+            if (bold != null) chart.DrawString(bold, k.V(left + 8, 16), Loc.Text("WHO_CARRIED.timeline.act", current.FightPoints[0].Act), HorizontalAlignment.Left, -1, k.F(14), RecapTheme.Gold);
             foreach (int start in current.ActStarts)
             {
                 if (start <= 0 || start >= fights) continue;
                 float x = (X(start - 1) + X(start)) / 2;
                 chart.DrawDashedLine(k.V(x, 4), k.V(x, baseline), actLine, k.U(2), k.U(6));
-                if (bold != null) chart.DrawString(bold, k.V(x + 8, 16), $"Act {current.FightPoints[start].Act}", HorizontalAlignment.Left, -1, k.F(14), RecapTheme.Gold);
+                if (bold != null) chart.DrawString(bold, k.V(x + 8, 16), Loc.Text("WHO_CARRIED.timeline.act", current.FightPoints[start].Act), HorizontalAlignment.Left, -1, k.F(14), RecapTheme.Gold);
             }
             if (hovered >= 0 && hovered < fights)
                 chart.DrawLine(k.V(X(hovered), top), k.V(X(hovered), baseline), new Color(1, 1, 1, 0.4f), k.U(1.5f));

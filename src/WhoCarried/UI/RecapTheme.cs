@@ -1,4 +1,6 @@
 using Godot;
+using MegaCrit.Sts2.Core.Localization.Fonts;
+using MegaCrit.Sts2.Core.Localization;
 
 namespace WhoCarried.UI;
 
@@ -51,6 +53,7 @@ internal static class RecapTheme
     private static Font? _regular, _bold;
     private static readonly Dictionary<(bool, int), Font?> Spaced = new();
     private static bool _loaded;
+    private static string? _language;
 
     public static Font? Regular { get { Load(); return _regular; } }
     public static Font? Bold { get { Load(); return _bold; } }
@@ -147,11 +150,30 @@ internal static class RecapTheme
     private static void Load()
     {
         bool alive = (_regular == null || GodotObject.IsInstanceValid(_regular)) && (_bold == null || GodotObject.IsInstanceValid(_bold));
-        if (_loaded && alive) return;
+        string language = LocManager.Instance?.Language ?? "eng";
+        if (_loaded && alive && _language == language) return;
+        _language = language;
         _loaded = true;
         Spaced.Clear(); // the letter-spaced variants were built on the old fonts
-        _regular = LoadFont("res://themes/kreon_regular_shared.tres", "res://fonts/kreon_regular.ttf");
-        _bold = LoadFont("res://themes/kreon_bold_shared.tres", "res://fonts/kreon_bold.ttf") ?? _regular;
+        _regular = LoadSubstituteFont(language, FontType.Regular) ?? LoadFont("res://themes/kreon_regular_shared.tres", "res://fonts/kreon_regular.ttf");
+        _bold = LoadSubstituteFont(language, FontType.Bold) ?? LoadFont("res://themes/kreon_bold_shared.tres", "res://fonts/kreon_bold.ttf") ?? _regular;
+    }
+
+    private static Font? LoadSubstituteFont(string language, FontType type)
+    {
+        try
+        {
+            Font? font = FontManager.GetSubstituteFont(language, type);
+            if (font == null || GodotObject.IsInstanceValid(font)) return font;
+            // The game's cache may still hold a font released between scenes.
+            FontManager.ClearCache();
+            font = FontManager.GetSubstituteFont(language, type);
+            return font != null && GodotObject.IsInstanceValid(font) ? font : null;
+        }
+        catch (Exception)
+        {
+            return null; // Keep the same safe resource fallback as the original theme.
+        }
     }
 
     private static Font? LoadFont(params string[] paths)

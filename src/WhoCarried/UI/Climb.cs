@@ -1,5 +1,6 @@
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -20,7 +21,7 @@ internal static class Climb
                                  PadTab? pad = null)
     {
         Control box = k.Box(width, height);
-        HBoxContainer heading = k.Heading("The climb", GameArt.Get(GameArt.Monster));
+        HBoxContainer heading = k.Heading(Loc.Text("WHO_CARRIED.timeline.climb"), GameArt.Get(GameArt.Monster));
         Label summary = k.Text("", 15, RecapTheme.Muted);
         heading.AddChild(Kit.Center(summary));
         HBoxContainer tag = k.Row(5);
@@ -32,7 +33,7 @@ internal static class Climb
         HBoxContainer swatches = k.Row(16);
         heading.AddChild(Kit.Center(swatches));
         box.AddChild(k.At(heading, 0, 0, width, 30));
-        Label empty = k.Text("No fights yet. The climb fills in as you go.", 16, RecapTheme.Muted);
+        Label empty = k.Text(Loc.Text("WHO_CARRIED.empty.climb"), 16, RecapTheme.Muted);
         box.AddChild(k.At(empty, 0, 60));
 
         // Geometry, in design pixels relative to the strip, as in the mockup.
@@ -94,9 +95,9 @@ internal static class Climb
             if (Caps() is not Font caps) return;
             float actY = baseY - 36 - barMax;
             var gold = new Color(RecapTheme.Gold, 0.8f);
-            chart.DrawString(caps, k.V(0, actY + 12), $"ACT {current.FightPoints[0].Act}", HorizontalAlignment.Left, -1, k.F(13), gold);
+            chart.DrawString(caps, k.V(0, actY + 12), Loc.Text("WHO_CARRIED.timeline.act", current.FightPoints[0].Act), HorizontalAlignment.Left, -1, k.F(13), gold);
             foreach (int start in current.ActStarts)
-                chart.DrawString(caps, k.V((X(start - 1) + X(start)) / 2 - 20, actY + 12), $"ACT {current.FightPoints[start].Act}",
+                chart.DrawString(caps, k.V((X(start - 1) + X(start)) / 2 - 20, actY + 12), Loc.Text("WHO_CARRIED.timeline.act", current.FightPoints[start].Act),
                     HorizontalAlignment.Left, -1, k.F(13), gold);
         };
 
@@ -151,7 +152,7 @@ internal static class Climb
             fromMax = animate && shown.Length > 0 ? shownMax : toMax;
 
             int team = v.Overview.Where(r => r.Share != null).Sum(r => r.Value);
-            summary.Text = $"{Kit.Num(team)} damage over {(n == 1 ? "1 fight" : $"{n} fights")}";
+            summary.Text = Loc.Text("WHO_CARRIED.timeline.total", Kit.Num(team), Loc.Text(n == 1 ? "WHO_CARRIED.summary.fight_one" : "WHO_CARRIED.summary.fights", n));
             int best = n == 0 ? -1 : Enumerable.Range(0, n).OrderByDescending(i => to[i].Sum()).First();
             tag.Visible = best >= 0 && to[best].Sum() > 0;
             if (tag.Visible) tagText.Text = $"{v.FightPoints[best].Label} {Kit.Num((int)to[best].Sum())}";
@@ -225,7 +226,7 @@ internal static class FightTip
         FightPoint point = view.FightPoints[fight];
         HBoxContainer title = k.Row(9);
         if (GameArt.Room(point.Room) is Texture2D icon) title.AddChild(Kit.Center(k.Pic(icon, 30, 30)));
-        title.AddChild(Kit.Center(k.Text($"Floor {point.Floor}, {point.Label}", 19, RecapTheme.Gold, true, Ink.Soft)));
+        title.AddChild(Kit.Center(k.Text(Loc.Text("WHO_CARRIED.timeline.floor", point.Floor, point.Label), 19, RecapTheme.Gold, true, Ink.Soft)));
         rows.AddChild(title);
         int team = 0;
         foreach (TimelineSeries s in view.Timeline.OrderByDescending(s => s.Values[fight]))
@@ -243,7 +244,7 @@ internal static class FightTip
         {
             rows.AddChild(k.Swatch(new Color(1, 1, 1, 0.1f), 230, 1, 0));
             HBoxContainer total = k.Row(8);
-            total.AddChild(Kit.Center(k.Text("Team", 15, RecapTheme.Muted)));
+            total.AddChild(Kit.Center(k.Text(Loc.Text("WHO_CARRIED.stat.team"), 15, RecapTheme.Muted)));
             total.AddChild(Kit.Fill());
             total.AddChild(Kit.Center(k.Text(Kit.Num(team), 17, RecapTheme.Text, true, Ink.Soft)));
             rows.AddChild(total);

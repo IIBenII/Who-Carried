@@ -58,17 +58,19 @@ internal static class Anim
 internal sealed class LiveNumber
 {
     private readonly Label _label;
+    private readonly Func<int, string> _format;
     private readonly Control? _holder;
     private int _value;
     private Tween? _tween;
 
-    public LiveNumber(Label label, int value, bool tight = false, float maxWidth = 0, int minSize = 0)
+    public LiveNumber(Label label, int value, bool tight = false, float maxWidth = 0, int minSize = 0, Func<int, string>? format = null)
     {
         _label = label;
+        _format = format ?? (v => Kit.Num(v));
         _value = value;
         MaxWidth = maxWidth;
         MinSize = minSize;
-        label.Text = Kit.Num(value);
+        label.Text = _format(value);
         _fullSize = label.GetThemeFontSize("font_size");
         if (maxWidth > 0) Kit.FitScaled(label, maxWidth, minSize);
         if (tight) _holder = Kit.Tight(label);
@@ -90,7 +92,7 @@ internal sealed class LiveNumber
         int from = _value;
         _value = value;
         // Size everything for the final text first, so the layout settles once instead of every frame.
-        _label.Text = Kit.Num(value);
+        _label.Text = _format(value);
         if (MaxWidth > 0)
         {
             _label.AddThemeFontSizeOverride("font_size", _fullSize);
@@ -100,7 +102,7 @@ internal sealed class LiveNumber
         if (!_label.IsInsideTree()) return;
         _tween?.Kill();
         _tween = _label.CreateTween().SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
-        _tween.TweenMethod(Callable.From<int>(v => _label.Text = Kit.Num(v)), from, value, Anim.Time);
+        _tween.TweenMethod(Callable.From<int>(v => _label.Text = _format(v)), from, value, Anim.Time);
     }
 }
 

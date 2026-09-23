@@ -185,7 +185,7 @@ internal static class Tracker
     }
 
     /// <summary>Lasting Strength a player took off an enemy (Malaise) is listed as this debuff.</summary>
-    private static readonly SourceRef StrengthLoss = new(SourceKind.Power, "STRENGTH_LOSS", "Strength loss");
+    private static SourceRef StrengthLoss => new(SourceKind.Power, "STRENGTH_LOSS", WhoCarried.Localization.Loc.Text("WHO_CARRIED.debuffs.strength_loss", GameText.Native("powers", "STRENGTH_POWER.title", "Strength")));
 
     /// <summary>
     /// Just before block, with the hit's final damage.
@@ -357,7 +357,7 @@ internal static class Tracker
             DoomPower? doom = creature.GetPower<DoomPower>();
             SourceCandidate source = doom != null
                 ? FactsExtractor.Candidate(doom)
-                : new SourceCandidate(new SourceRef(SourceKind.Power, "DOOM_POWER", "Doom"), null);
+                : new SourceCandidate(new SourceRef(SourceKind.Power, "DOOM_POWER", GameText.Native("powers", "DOOM_POWER.title", "Doom")), null);
             IReadOnlyDictionary<ulong, int>? shares = null;
             try
             {
