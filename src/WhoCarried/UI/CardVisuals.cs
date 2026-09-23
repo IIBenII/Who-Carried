@@ -112,7 +112,7 @@ internal sealed class CardVisuals
         name.AddThemeFontSizeOverride("font_size", Math.Max(8, (int)(17 * u)));
         name.AddThemeColorOverride("font_color", rarity);
         column.AddChild(name);
-        var type = new Label { Text = entry.Type.ToUpperInvariant(), HorizontalAlignment = HorizontalAlignment.Center };
+        var type = new Label { Text = GameText.CardType(entry.Type), HorizontalAlignment = HorizontalAlignment.Center };
         if (RecapTheme.Regular is Font regular) type.AddThemeFontOverride("font", regular);
         type.AddThemeFontSizeOverride("font_size", Math.Max(7, (int)(12 * u)));
         type.AddThemeColorOverride("font_color", RecapTheme.Muted);

@@ -1,5 +1,7 @@
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -54,12 +56,12 @@ internal static class DecksTab
                 child.QueueFree();
             }
             if (deck == null || deck.Entries.Count == 0) return;
-            counts.AddChild(Kit.Center(k.Text($"{deck.CardCount} cards", 18, RecapTheme.Text, true, Ink.Soft)));
+            counts.AddChild(Kit.Center(k.Text(Loc.Text("WHO_CARRIED.decks.count", deck.CardCount), 18, RecapTheme.Text, true, Ink.Soft)));
             counts.AddChild(k.Gap(6, 0));
             foreach (IGrouping<string, DeckEntry> type in deck.Entries.GroupBy(e => TypeGroup(e.Type)).OrderBy(g => Order(g.Key)))
                 counts.AddChild(Kit.Center(TypeChip(k, type.Key, type.Sum(e => e.Count))));
             counts.AddChild(k.Gap(6, 0));
-            counts.AddChild(Kit.Center(k.Text($"{deck.Entries.Count} different · damage shown on the cards that dealt it", 15, RecapTheme.Muted)));
+            counts.AddChild(Kit.Center(k.Text(Loc.Text("WHO_CARRIED.decks.distinct", deck.Entries.Count), 15, RecapTheme.Muted)));
         }
 
         void ShowDeck(ulong playerId)
@@ -78,7 +80,7 @@ internal static class DecksTab
             Counts(deck);
             if (deck == null || deck.Entries.Count == 0)
             {
-                grid.AddChild(k.Text("No deck data.", 18, RecapTheme.Muted));
+                grid.AddChild(k.Text(Loc.Text("WHO_CARRIED.empty.decks"), 18, RecapTheme.Muted));
                 return;
             }
             foreach (DeckEntry entry in deck.Entries)
@@ -112,7 +114,7 @@ internal static class DecksTab
 
         Banners(view);
         if (view.Decks.Count > 0) ShowDeck(view.Decks[0].PlayerId);
-        else grid.AddChild(k.Text("No deck data.", 18, RecapTheme.Muted));
+        else grid.AddChild(k.Text(Loc.Text("WHO_CARRIED.empty.decks"), 18, RecapTheme.Muted));
 
         live.On(v =>
         {
@@ -188,7 +190,7 @@ internal static class DecksTab
 
     private static int Order(string group) => group switch { "Attack" => 0, "Skill" => 1, "Power" => 2, "Curse" => 3, _ => 4 };
 
-    private static string Plural(string group) => group == "Other" ? "Other" : group + "s";
+    private static string Plural(string group) => group == "Other" ? Loc.Text("WHO_CARRIED.sources.other") : GameText.CardType(group);
 
     /// <summary>A deck card (real or text) with a copies badge and a damage plaque; both update in place.</summary>
     private static (Control Slot, Action<DeckEntry> Update) Slot(Kit k, DeckView deck, DeckEntry entry, CardVisuals? cards, float scale)
@@ -221,7 +223,7 @@ internal static class DecksTab
             copies.Size = Vector2.Zero;
             float copiesW = Kit.Measure(copiesText) + k.U(12) + k.U(3);
             copies.Position = new Vector2(size.X - copiesW + k.U(6), -k.U(6));
-            damageText.Text = $"{Kit.Num(e.Damage)} dmg";
+            damageText.Text = Loc.Text("WHO_CARRIED.stat.damage_amount", Kit.Num(e.Damage));
             damage.Visible = e.Damage > 0;
             damage.Size = Vector2.Zero;
             float damageW = Kit.Measure(damageText) + k.U(16) + k.U(3);
@@ -267,7 +269,7 @@ internal static class DecksTab
             }
             column.AddChild(line);
         }
-        if (deck.Entries.Count == 0) column.AddChild(k.Text("No deck data.", 14, RecapTheme.Muted));
+        if (deck.Entries.Count == 0) column.AddChild(k.Text(Loc.Text("WHO_CARRIED.empty.decks"), 14, RecapTheme.Muted));
         return column;
     }
 }

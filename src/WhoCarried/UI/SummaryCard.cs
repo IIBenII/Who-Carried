@@ -1,6 +1,7 @@
 using System.Globalization;
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -45,21 +46,21 @@ internal static class SummaryCard
         }
 
         if (view.Awards.Count > 0)
-            body.AddChild(Section(k, "Awards", GameArt.Get(GameArt.Trophy), Awards(k, view),
+            body.AddChild(Section(k, Loc.Text("WHO_CARRIED.tab.awards"), GameArt.Get(GameArt.Trophy), Awards(k, view),
                 AwardsNote(view.Awards.Count, ScoreboardTab.Players(view).Count > 1)));
         if (view.Badges?.Any(p => p.Badges.Count > 0) == true)
-            body.AddChild(Section(k, "Relics of the run", GameArt.Get(GameArt.Achievements), Relics(k, view), "the game's badges"));
+            body.AddChild(Section(k, Loc.Text("WHO_CARRIED.awards.badges"), GameArt.Get(GameArt.Achievements), Relics(k, view), Loc.Text("WHO_CARRIED.awards.badges_hint")));
         if (view.Sources.Any(s => s.Rows.Count > 0))
-            body.AddChild(Section(k, "Top sources", GameArt.Get(GameArt.Swords), Sources(k, view)));
+            body.AddChild(Section(k, Loc.Text("WHO_CARRIED.sources.top"), GameArt.Get(GameArt.Swords), Sources(k, view)));
         if (view.FightPoints.Count > 0)
             body.AddChild(Climb.Create(k, view, Inner, 212, 110, interactive: false, live: null));
         if (view.Debuffs.Applied.Count > 0)
-            body.AddChild(Section(k, "Debuffs", k.Icon(DebuffBuilder.IconPrefix + "VULNERABLE_POWER"),
-                DebuffsTab.Applied(k, view, Inner, 3, null), "who stacked what, and what it did for the team"));
+            body.AddChild(Section(k, Loc.Text("WHO_CARRIED.tab.debuffs"), k.Icon(DebuffBuilder.IconPrefix + "VULNERABLE_POWER"),
+                DebuffsTab.Applied(k, view, Inner, 3, null), Loc.Text("WHO_CARRIED.debuffs.hint")));
         if (view.Defense.Count > 0)
-            body.AddChild(Section(k, "Defense", GameArt.Get(GameArt.Block), DefenseTab.Plates(k, view, Inner, 2, 104, null, compact: true)));
+            body.AddChild(Section(k, Loc.Text("WHO_CARRIED.tab.defense"), GameArt.Get(GameArt.Block), DefenseTab.Plates(k, view, Inner, 2, 104, null, compact: true)));
         if (view.Decks.Any(d => d.Entries.Count > 0))
-            body.AddChild(Section(k, "Decks", GameArt.Get(GameArt.Deck), Decks(k, view), "damage in gold on the cards that dealt it"));
+            body.AddChild(Section(k, Loc.Text("WHO_CARRIED.tab.decks"), GameArt.Get(GameArt.Deck), Decks(k, view), Loc.Text("WHO_CARRIED.decks.hint")));
 
         body.AddChild(Footer(k, view));
         return page;
@@ -124,7 +125,7 @@ internal static class SummaryCard
         Stat(GameArt.Get(GameArt.Ascension), (view.Facts?.Ascension ?? 0) > 0 ? view.Facts!.Ascension.ToString(CultureInfo.InvariantCulture) : "");
         Stat(GameArt.Get(GameArt.Swords), Kit.Num(RecapTexts.TeamDamage(view)));
         row.AddChild(Kit.Fill());
-        row.AddChild(Kit.Center(k.Text(date.ToString("d MMMM yyyy", CultureInfo.InvariantCulture), 16, RecapTheme.Muted)));
+        row.AddChild(Kit.Center(k.Text(date.ToString("d", Loc.Culture), 16, RecapTheme.Muted)));
         return bar;
     }
 
@@ -165,18 +166,13 @@ internal static class SummaryCard
         var parts = new List<string>();
         if (view.BonusNote.Length > 0 && ScoreboardTab.Players(view).Count > 1) parts.Add(view.BonusNote);
         if (view.Overview.FirstOrDefault(r => r.Share == null) is BarRow unattributed)
-            parts.Add($"{Kit.Num(unattributed.Value)} damage couldn't be credited to anyone.");
+            parts.Add(Loc.Text("WHO_CARRIED.summary.unattributed", Kit.Num(unattributed.Value)));
         return string.Join("  ·  ", parts);
     }
 
     private static string AwardsNote(int count, bool party) =>
-        count == 1 ? "one title" : party ? $"{Words(count)} titles, one winner each" : $"{Words(count)} titles";
+        Loc.Text(count == 1 ? "WHO_CARRIED.awards.one" : party ? "WHO_CARRIED.awards.team_count" : "WHO_CARRIED.awards.count", count);
 
-    private static string Words(int n) => n switch
-    {
-        2 => "two", 3 => "three", 4 => "four", 5 => "five", 6 => "six", 7 => "seven", 8 => "eight", 9 => "nine", 10 => "ten",
-        11 => "eleven", 12 => "twelve", _ => n.ToString(CultureInfo.InvariantCulture),
-    };
 
     /// <summary>A section: its heading, then its content.</summary>
     private static Control Section(Kit k, string title, Texture2D? icon, Control content, string? note = null)
@@ -240,7 +236,7 @@ internal static class SummaryCard
 
             VBoxContainer who = k.Column(0);
             who.CustomMinimumSize = new Vector2(180, 0);
-            Label title = k.Text(award.Title, 18, RecapTheme.Gold, true, Ink.Soft);
+            Label title = k.Text(Loc.Text(award.Title), 18, RecapTheme.Gold, true, Ink.Soft);
             k.Fit(title, 180, 13);
             who.AddChild(title);
             Label name = k.Text(award.PlayerName, 14, accent, true, Ink.Soft);
@@ -280,7 +276,7 @@ internal static class SummaryCard
             row.AddChild(Kit.Center(who));
             if (p.Badges.Count == 0)
             {
-                row.AddChild(Kit.Center(k.Text("No badges this run", 13, RecapTheme.Faint)));
+                row.AddChild(Kit.Center(k.Text(Loc.Text("WHO_CARRIED.empty.badges"), 13, RecapTheme.Faint)));
             }
             else
             {
@@ -326,7 +322,7 @@ internal static class SummaryCard
                 VBoxContainer words = k.Column(3);
                 words.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
                 HBoxContainer top = k.Row(6);
-                Label label = k.Text(r.Label, 14, RecapTheme.Text);
+                Label label = k.Text(RecapTexts.SourceLabel(r), 14, RecapTheme.Text);
                 label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
                 label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
                 label.CustomMinimumSize = new Vector2(10, 0);
@@ -357,13 +353,13 @@ internal static class SummaryCard
     {
         HBoxContainer row = k.Row(12);
         var parts = new List<string>();
-        if (view.Facts?.Seed is string seed && seed.Length > 0) parts.Add($"Seed {seed}");
+        if (view.Facts?.Seed is string seed && seed.Length > 0) parts.Add(Loc.Text("WHO_CARRIED.summary.seed", seed));
         int n = ScoreboardTab.Players(view).Count;
-        if (n > 0) parts.Add(n == 1 ? "solo" : $"{Words(n)} players");
+        if (n > 0) parts.Add(n == 1 ? Loc.Text("WHO_CARRIED.summary.solo") : Loc.Text("WHO_CARRIED.summary.players", n));
         if (view.Victory != null && view.FightPoints.Count > 0) parts.Add(view.FightPoints[^1].Label);
         row.AddChild(k.Text(string.Join(" · ", parts), 13, RecapTheme.Faint));
         row.AddChild(Kit.Fill());
-        row.AddChild(k.Text($"{RecapTexts.ModName} · a Slay the Spire 2 mod", 13, RecapTheme.Faint));
+        row.AddChild(k.Text(Loc.Text("WHO_CARRIED.summary.credit", RecapTexts.ModName), 13, RecapTheme.Faint));
         return Pull(row, -4);
     }
 }

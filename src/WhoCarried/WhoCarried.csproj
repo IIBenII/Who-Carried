@@ -40,4 +40,7 @@
     <None Include="WhoCarried.json" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="UI\Art\TopBarIcon.svg" LogicalName="WhoCarried.TopBarIcon.svg" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Localization/**/*.json" LogicalName="WhoCarried.Localization.%(Filename).json" />
+  </ItemGroup>
 </Project>

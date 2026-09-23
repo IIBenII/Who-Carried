@@ -1,5 +1,6 @@
 using Godot;
 using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -97,8 +98,8 @@ internal static class HotkeyRebind
         if (!Ready()) return;
         _panel!.Hotkey.Look(HewnStone.CapLook.Listening);
         _panel.Hotkey.Cap.Text = "?";
-        _panel.Hotkey.Text.Text = "press a key…";
-        _panel.Hotkey.Hint.Text = "esc cancels · del clears";
+        _panel.Hotkey.Text.Text = Loc.Text("WHO_CARRIED.hotkey.press");
+        _panel.Hotkey.Hint.Text = Loc.Text("WHO_CARRIED.hotkey.help");
     }
 
     /// <summary>The cap carries the key again — or says there isn't one, which the podium button makes survivable.</summary>
@@ -108,7 +109,7 @@ internal static class HotkeyRebind
         string? name = HotkeyBinding.Name;
         _panel!.Hotkey.Look(name == null ? HewnStone.CapLook.Unbound : HewnStone.CapLook.Bound);
         _panel.Hotkey.Cap.Text = name ?? "—";
-        _panel.Hotkey.Text.Text = name == null ? "no key opens the recap" : "toggles the recap";
+        _panel.Hotkey.Text.Text = name == null ? Loc.Text("WHO_CARRIED.hotkey.unbound") : Loc.Text("WHO_CARRIED.hotkey.toggle");
         _panel.Hotkey.Hint.Text = "";
     }
 

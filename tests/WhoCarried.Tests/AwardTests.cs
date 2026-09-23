@@ -91,7 +91,7 @@ public static class AwardTests
         s.RecordBlocked(1, 100);
         s.RecordHp(1, 3, 80);
         IReadOnlyList<Award> a = AwardBuilder.Build(s, new[] { Alice }, new Dictionary<ulong, DefenseTotals> { [1] = new(50, 0) });
-        Check.Equal("Heavy hitter,Clutch", string.Join(",", a.Select(x => x.Title)), "solo awards");
+        Check.Equal(string.Join(",", AwardBuilder.HeavyHitter, AwardBuilder.Clutch), string.Join(",", a.Select(x => x.Title)), "solo awards");
     }
 
     [Test]
@@ -140,8 +140,8 @@ public static class AwardTests
 
         RecapView running = RecapBuilder.Build(s, new[] { Alice, Bob }, new Dictionary<ulong, DefenseTotals>(), "h");
         Check.True(!running.BadgesKnown, "no badges mid-run");
-        Check.Equal("Heavy hitter", running.Overview[0].Award, "Alice's headline");
-        Check.Equal("Enabler", running.Overview[1].Award, "Bob's headline");
+        Check.Equal(AwardBuilder.HeavyHitter, running.Overview[0].Award, "Alice's headline");
+        Check.Equal(AwardBuilder.Enabler, running.Overview[1].Award, "Bob's headline");
 
         s.Finished = true;
         RecapView done = RecapBuilder.Build(s, new[] { Alice, Bob }, new Dictionary<ulong, DefenseTotals>(), "h",

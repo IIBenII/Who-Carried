@@ -32,6 +32,7 @@ public static class ModEntry
     public static void Initialize()
     {
         string modDir = Path.GetDirectoryName(typeof(ModEntry).Assembly.Location) ?? ".";
+        ModLocalization.Install();
         Tracker.Init(modDir);
 
         var harmony = new Harmony("whocarried");

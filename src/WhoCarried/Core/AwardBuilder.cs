@@ -1,4 +1,5 @@
 using System.Globalization;
+using WhoCarried.Localization;
 
 namespace WhoCarried.Core;
 
@@ -21,7 +22,8 @@ public sealed record BadgeInfo(string Id, string Rarity, string Title, string De
 /// <summary>One player's end-of-run badges (possibly none).</summary>
 public sealed record PlayerBadges(ulong PlayerId, string Name, string ColorHex, string? IconKey, IReadOnlyList<BadgeInfo> Badges);
 
-/// <summary>One of the recap's own awards: a title, who won it, the number behind it and what that number means.</summary>
+/// <summary>One of the recap's own awards: a title key, winner, value and localized detail.</summary>
+/// <param name="Title">Stable WHO_CARRIED award key; resolve with Loc.Text at the view boundary.</param>
 /// <param name="Value">The headline number, formatted ("7 HP", "+4,138", "9 of 23").</param>
 /// <param name="Detail">What the number means, as a short phrase.</param>
 public sealed record Award(string Title, ulong PlayerId, string PlayerName, string ColorHex, string? IconKey, string Value,
@@ -42,9 +44,9 @@ public static class AwardBuilder
     /// <summary>"Jack of all trades" needs at least this many different damage sources.</summary>
     public const int MinSources = 5;
 
-    public const string Clutch = "Clutch", HeavyHitter = "Heavy hitter", Enabler = "Enabler", Protector = "Protector",
-        Wall = "Wall", SiegeBreaker = "Siege breaker", FightLeader = "Fight leader", JackOfAllTrades = "Jack of all trades",
-        CardFactory = "Card factory", Unscathed = "Unscathed", PunchingBag = "Punching bag";
+    public const string Clutch = "WHO_CARRIED.award.clutch", HeavyHitter = "WHO_CARRIED.award.heavy_hitter", Enabler = "WHO_CARRIED.award.enabler", Protector = "WHO_CARRIED.award.protector",
+        Wall = "WHO_CARRIED.award.wall", SiegeBreaker = "WHO_CARRIED.award.siege_breaker", FightLeader = "WHO_CARRIED.award.fight_leader", JackOfAllTrades = "WHO_CARRIED.award.jack_of_all_trades",
+        CardFactory = "WHO_CARRIED.award.card_factory", Unscathed = "WHO_CARRIED.award.unscathed", PunchingBag = "WHO_CARRIED.award.punching_bag";
 
     /// <param name="byRank">Players in scoreboard order; ties go to the earlier one.</param>
     public static IReadOnlyList<Award> Build(RunStats stats, IReadOnlyList<PlayerInfo> byRank,
@@ -63,12 +65,12 @@ public static class AwardBuilder
         // In this order: a player's first award is their headline on the scoreboard, so the more telling ones lead.
         PlayerInfo? hitter = Most(byRank, p => T(p)?.BiggestHit ?? 0);
         if (hitter != null)
-            Give(HeavyHitter, hitter, Num(T(hitter)!.BiggestHit), $"damage in one hit, with {T(hitter)!.BiggestHitLabel}");
+            Give(HeavyHitter, hitter, Num(T(hitter)!.BiggestHit), Loc.Text("WHO_CARRIED.award.heavy_hitter_detail", T(hitter)!.BiggestHitLabel));
 
         PlayerInfo? enabler = team ? Most(byRank, p => Sum(T(p)?.DebuffBonus)) : null;
         if (enabler != null)
             Give(Enabler, enabler, "+" + Num(Sum(T(enabler)!.DebuffBonus)),
-                $"damage teammates gained from their {RecapBuilder.JoinAnd(Labels(T(enabler)!.DebuffBonus))}");
+                Loc.Text("WHO_CARRIED.award.enabler_detail", RecapBuilder.JoinAnd(Labels(T(enabler)!.DebuffBonus))));
 
         // Clutch: the lowest share of max HP anyone lived through, if it was a real close call.
         (PlayerInfo Player, int Hp, int Max)? low = null;
@@ -78,43 +80,43 @@ public static class AwardBuilder
             if (low is not (_, int bestHp, int bestMax) || (long)hp * bestMax < (long)bestHp * max) low = (p, hp, max);
         }
         if (low is (PlayerInfo lowPlayer, int lowHp, int lowMax) && lowHp <= lowMax * ClutchShare)
-            Give(Clutch, lowPlayer, $"{Num(lowHp)} HP", $"left of {Num(lowMax)}, the closest call anyone lived through");
+            Give(Clutch, lowPlayer, Loc.Text("WHO_CARRIED.award.hp", Num(lowHp)), Loc.Text("WHO_CARRIED.award.clutch_detail", Num(lowMax)));
 
         if (!team) return awards;
 
         PlayerInfo? protector = Most(byRank, p => Sum(T(p)?.DebuffPrevented));
         if (protector != null)
             Give(Protector, protector, Num(Sum(T(protector)!.DebuffPrevented)),
-                $"damage their {RecapBuilder.JoinAnd(Labels(T(protector)!.DebuffPrevented))} kept off the team");
+                Loc.Text("WHO_CARRIED.award.protector_detail", RecapBuilder.JoinAnd(Labels(T(protector)!.DebuffPrevented))));
 
         PlayerInfo? wall = Most(byRank, p => T(p)?.Blocked ?? 0);
-        if (wall != null) Give(Wall, wall, Num(T(wall)!.Blocked), "damage blocked");
+        if (wall != null) Give(Wall, wall, Num(T(wall)!.Blocked), Loc.Text("WHO_CARRIED.award.wall_detail"));
 
         PlayerInfo? breaker = Most(byRank, p => T(p)?.BlockRemoved ?? 0);
-        if (breaker != null) Give(SiegeBreaker, breaker, Num(T(breaker)!.BlockRemoved), "enemy block knocked off");
+        if (breaker != null) Give(SiegeBreaker, breaker, Num(T(breaker)!.BlockRemoved), Loc.Text("WHO_CARRIED.award.siege_breaker_detail"));
 
         Dictionary<ulong, int> led = FightsLed(stats, byRank);
         PlayerInfo? leader = Most(byRank, p => led.GetValueOrDefault(p.NetId));
         if (leader != null)
-            Give(FightLeader, leader, $"{led[leader.NetId]} of {stats.Fights.Count}", "fights where they dealt the most damage");
+            Give(FightLeader, leader, Loc.Text("WHO_CARRIED.award.ratio", led[leader.NetId], stats.Fights.Count), Loc.Text("WHO_CARRIED.award.fight_leader_detail"));
 
         int SourceCount(PlayerInfo p) => T(p)?.Sources.Values.Count(s => s.Amount > 0) ?? 0;
         PlayerInfo? jack = Most(byRank, p => SourceCount(p));
         if (jack != null && SourceCount(jack) >= MinSources)
-            Give(JackOfAllTrades, jack, Num(SourceCount(jack)), "different cards, relics and powers that dealt damage");
+            Give(JackOfAllTrades, jack, Num(SourceCount(jack)), Loc.Text("WHO_CARRIED.award.jack_of_all_trades_detail"));
 
         PlayerInfo? factory = Most(byRank, p => Sum(T(p)?.CardsCreated));
         if (factory != null && Sum(T(factory)!.CardsCreated) >= MinCardsCreated)
             Give(CardFactory, factory, Num(Sum(T(factory)!.CardsCreated)),
-                $"cards created, mostly {Labels(T(factory)!.CardsCreated)[0]}");
+                Loc.Text("WHO_CARRIED.award.card_factory_detail", Labels(T(factory)!.CardsCreated)[0]));
 
         // Damage taken comes from the game's own per-floor history; only compare when every player has it.
         if (byRank.All(p => defense.ContainsKey(p.NetId)) && byRank.Select(p => defense[p.NetId].Taken).Distinct().Count() > 1)
         {
             PlayerInfo least = byRank.OrderBy(p => defense[p.NetId].Taken).First();
             PlayerInfo most = Most(byRank, p => defense[p.NetId].Taken)!;
-            Give(Unscathed, least, Num(defense[least.NetId].Taken), "damage taken, the least on the team");
-            Give(PunchingBag, most, Num(defense[most.NetId].Taken), "damage taken, the most on the team");
+            Give(Unscathed, least, Num(defense[least.NetId].Taken), Loc.Text("WHO_CARRIED.award.unscathed_detail"));
+            Give(PunchingBag, most, Num(defense[most.NetId].Taken), Loc.Text("WHO_CARRIED.award.punching_bag_detail"));
         }
         return awards;
     }

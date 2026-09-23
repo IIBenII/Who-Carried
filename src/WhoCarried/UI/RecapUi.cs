@@ -4,6 +4,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen;
 using MegaCrit.Sts2.Core.Runs;
 using WhoCarried.Core;
 using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -195,7 +196,7 @@ internal static class RecapUi
     /// </summary>
     private static void Export(RecapView view, Func<string?, Texture2D?> icons, PanelHandle handle)
     {
-        handle.Status.Text = "Saving...";
+        handle.Status.Text = Loc.Text("WHO_CARRIED.export.saving");
         void Show(string text)
         {
             if (GodotObject.IsInstanceValid(handle.Status)) handle.Status.Text = text;
@@ -209,15 +210,15 @@ internal static class RecapUi
             if (image == null)
             {
                 Tracker.Note($"export failed: {error}");
-                Show("Couldn't save the image");
+                Show(Loc.Text("WHO_CARRIED.export.failed"));
                 return;
             }
             if (SteamScreenshot.Available)
             {
-                SteamScreenshot.Write(image, $"Who Carried? {view.Header}", steamError =>
+                SteamScreenshot.Write(image, $"{RecapTexts.ModName} {view.Header}", steamError =>
                 {
                     Tracker.Note(steamError == null ? "exported to Steam screenshots" : $"Steam export failed: {steamError}");
-                    Show(steamError == null ? "Saved to your Steam screenshots" : "Couldn't save the image");
+                    Show(steamError == null ? Loc.Text("WHO_CARRIED.export.steam") : Loc.Text("WHO_CARRIED.export.failed"));
                 });
                 return;
             }
@@ -225,7 +226,7 @@ internal static class RecapUi
             string path = Path.Combine(PngExporter.FallbackFolder, $"run-{DateTime.Now:yyyy-MM-dd_HHmm}-{result}.png");
             string? saveError = PngExporter.SavePng(image, path);
             Tracker.Note(saveError == null ? $"exported {path}" : $"export failed: {saveError}");
-            Show(saveError == null ? $"Saved to {PngExporter.FallbackFolder}" : "Couldn't save the image");
+            Show(saveError == null ? Loc.Text("WHO_CARRIED.export.saved", PngExporter.FallbackFolder) : Loc.Text("WHO_CARRIED.export.failed"));
         });
     }
 

@@ -1,5 +1,7 @@
 using Godot;
 using WhoCarried.Core;
+using WhoCarried.Game;
+using WhoCarried.Localization;
 
 namespace WhoCarried.UI;
 
@@ -26,7 +28,7 @@ internal static class ScoreboardTab
             BarRow? unattributed = v.Overview.FirstOrDefault(r => r.Share == null);
             var parts = new List<string>();
             if (v.BonusNote.Length > 0 && Players(v).Count > 1) parts.Add(v.BonusNote);
-            if (unattributed != null) parts.Add($"{Kit.Num(unattributed.Value)} damage couldn't be credited to anyone.");
+            if (unattributed != null) parts.Add(Loc.Text("WHO_CARRIED.summary.unattributed", Kit.Num(unattributed.Value)));
             note.Text = string.Join("  ·  ", parts);
         }
         Note(view);
@@ -126,7 +128,7 @@ internal static class ScoreboardTab
 
             _number = new LiveNumber(k.Strong("", em * 3.6f), row.Value, tight: true, maxWidth: k.U(width * 0.76f), minSize: k.F(em * 2));
             body.AddChild(Centered(_number.Control));
-            Label caption = k.Caps("Damage dealt", em * 0.72f, RecapTheme.Caption, em * 0.16f);
+            Label caption = k.Caps(Loc.Text("WHO_CARRIED.stat.damage"), em * 0.72f, RecapTheme.Caption, em * 0.16f);
             caption.HorizontalAlignment = HorizontalAlignment.Center;
             body.AddChild(Pad(caption, em * 0.35f));
 
@@ -134,7 +136,7 @@ internal static class ScoreboardTab
             chips.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
             (_shareChip, _share) = Chip(GameArt.Get(GameArt.Swords), RecapTheme.Gold, "");
             chips.AddChild(_shareChip);
-            (Control blockChip, _block) = Chip(GameArt.Get(GameArt.Block), RecapTheme.Green, " block");
+            (Control blockChip, _block) = Chip(GameArt.Get(GameArt.Block), RecapTheme.Green, "");
             chips.AddChild(blockChip);
             body.AddChild(Pad(chips, em * 0.7f));
 
@@ -168,22 +170,22 @@ internal static class ScoreboardTab
         {
             _number.Set(row.Value);
             Face.SetGemText((rank + 1).ToString());
-            Face.SetPlaque(row.Award);
+            Face.SetPlaque(row.Award.Length == 0 ? "" : Loc.Text(row.Award));
             Face.SetBadges(row.BadgeList);
             _share.Text = row.Share is double s ? $"{Math.Round(s * 100):0}%" : "";
             _shareChip.Visible = n > 1;
-            _block.Text = Kit.Num(row.BlockRemoved);
+            _block.Text = Loc.Text("WHO_CARRIED.stat.block_amount", Kit.Num(row.BlockRemoved), GameText.Block);
             if (_solo)
             {
                 Award? hitter = view.Awards.FirstOrDefault(a => a.Title == AwardBuilder.HeavyHitter);
-                _bonusText.Text = "Biggest hit ";
-                _bonusValue.Text = hitter?.Value ?? "";
+                _bonusText.Text = Loc.Text("WHO_CARRIED.stat.biggest_hit_amount", hitter?.Value ?? "");
+                _bonusValue.Text = "";
                 _bonusLine.Visible = hitter != null;
             }
             else
             {
-                _bonusValue.Text = $"+{Kit.Num(row.Bonus)}";
-                _bonusText.Text = " bonus damage";
+                _bonusValue.Text = "";
+                _bonusText.Text = Loc.Text("WHO_CARRIED.stat.bonus_amount", Kit.Num(row.Bonus));
                 _bonusLine.Visible = row.Bonus > 0;
             }
             Face.SetLeader(rank == 0);
@@ -262,7 +264,7 @@ internal static class ScoreboardTab
     public static Control TopSources(Kit k, RecapView view, int rows, Live? live)
     {
         VBoxContainer box = k.Column(11);
-        box.AddChild(k.Heading("Top sources", GameArt.Get(GameArt.Swords)));
+        box.AddChild(k.Heading(Loc.Text("WHO_CARRIED.sources.top"), GameArt.Get(GameArt.Swords)));
 
         (Control, Action<(BarRow Row, int Max)>) Line((BarRow Row, int Max) item, Color color)
         {
@@ -271,7 +273,7 @@ internal static class ScoreboardTab
             VBoxContainer words = k.Column(3);
             words.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             HBoxContainer top = k.Row(6);
-            Label label = k.Text(item.Row.Label, 15, RecapTheme.Text);
+            Label label = k.Text(RecapTexts.SourceLabel(item.Row), 15, RecapTheme.Text);
             label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             top.AddChild(Kit.Center(label));
@@ -303,7 +305,7 @@ internal static class ScoreboardTab
             panel.AddThemeStyleboxOverride("panel", style);
             VBoxContainer group = k.Column(7);
             group.AddChild(k.Who(RecapTexts.Name(item.Source.PlayerLabel), item.Source.IconKey, color));
-            Label none = k.Text("No damage yet.", 14, RecapTheme.Muted);
+            Label none = k.Text(Loc.Text("WHO_CARRIED.empty.damage"), 14, RecapTheme.Muted);
             group.AddChild(none);
             panel.AddChild(group);
             var lines = new KeyedRows<(BarRow Row, int Max)>(group, l => RecapTexts.SourceKey(l.Row), l => Line(l, color), offset: 2);
@@ -336,7 +338,7 @@ internal static class ScoreboardTab
         tip.AddChild(column);
         HBoxContainer title = k.Row(10);
         title.AddChild(Kit.Center(k.Pic(GameArt.Get(GameArt.Trophy), 34, 34)));
-        title.AddChild(Kit.Center(k.Text("Your run", 22, RecapTheme.Gold, true, Ink.Soft)));
+        title.AddChild(Kit.Center(k.Text(Loc.Text("WHO_CARRIED.summary.your_run"), 22, RecapTheme.Gold, true, Ink.Soft)));
         column.AddChild(title);
         VBoxContainer lines = k.Column(12);
         column.AddChild(lines);
